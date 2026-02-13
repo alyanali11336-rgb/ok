@@ -3,162 +3,211 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pak-Digital Library AI</title>
+    <title>Pak-Tutor AI | Complete Learning Suite</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --android-green: #3DDC84;
-            --ptb-green: #006633;
+            --primary: #006633;
+            --accent: #3DDC84;
+            --bg: #f8f9fa;
             --surface: #ffffff;
-            --bg: #f0f2f5;
+            --text: #202124;
+            --shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
 
-        body { margin: 0; font-family: 'Roboto', sans-serif; background: var(--bg); overflow: hidden; }
+        [data-theme="dark"] {
+            --bg: #121212;
+            --surface: #1e1e1e;
+            --text: #e8eaed;
+            --primary: #008443;
+        }
 
-        /* Android Style App Bar */
-        .app-bar {
-            height: 60px; background: var(--ptb-green); color: white;
+        body { margin: 0; font-family: 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
+
+        /* Android Style Top Nav */
+        .top-nav {
+            height: 65px; background: var(--primary); color: white;
             display: flex; align-items: center; padding: 0 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2); position: relative; z-index: 100;
+            justify-content: space-between; box-shadow: var(--shadow);
+            position: sticky; top: 0; z-index: 1000;
         }
 
-        /* Library Grid */
-        .library-container {
-            display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-            gap: 20px; padding: 20px; height: calc(100vh - 60px); overflow-y: auto;
+        .search-bar {
+            background: rgba(255,255,255,0.2); border-radius: 8px;
+            padding: 8px 15px; display: flex; align-items: center; width: 40%;
         }
+        .search-bar input {
+            background: transparent; border: none; color: white; 
+            margin-left: 10px; width: 100%; outline: none;
+        }
+        .search-bar input::placeholder { color: #ddd; }
 
-        /* 3D Book Cover Style */
+        /* Main Layout */
+        .app-container { display: flex; height: calc(100vh - 65px); }
+
+        /* Library Section */
+        .library-section { flex: 1; padding: 25px; overflow-y: auto; display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 25px; }
+
         .book-card {
-            perspective: 1000px; cursor: pointer; transition: 0.3s;
+            background: var(--surface); border-radius: 12px; padding: 15px;
+            text-align: center; box-shadow: var(--shadow); cursor: pointer;
+            transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1); border: 1px solid transparent;
+        }
+        .book-card:hover { transform: translateY(-10px); border-color: var(--accent); }
+        .book-cover-art { 
+            height: 180px; background: var(--primary); border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-size: 40px; margin-bottom: 12px;
+            box-shadow: 4px 4px 8px rgba(0,0,0,0.2);
         }
 
-        .book-inner {
-            width: 130px; height: 180px; position: relative;
-            transform-style: preserve-3d; transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 5px 5px 15px rgba(0,0,0,0.3); border-radius: 2px 10px 10px 2px;
+        /* 3D Reader Overlay */
+        #reader-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+            display: none; z-index: 2000; padding: 40px;
+            backdrop-filter: blur(8px);
         }
 
-        .book-card:hover .book-inner { transform: rotateY(-25deg); }
-
-        .book-cover {
-            position: absolute; width: 100%; height: 100%;
-            background: var(--ptb-green); color: white;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            text-align: center; border-radius: 2px 10px 10px 2px; padding: 10px;
-            font-size: 12px; font-weight: bold; border-left: 5px solid rgba(0,0,0,0.2);
-        }
-
-        /* Fullscreen Book Overlay */
-        #book-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9); display: none; z-index: 200;
-            justify-content: center; align-items: center;
+        .reader-container {
+            width: 100%; height: 100%; display: flex; gap: 20px;
         }
 
         .real-book-3d {
-            width: 80%; max-width: 900px; height: 80%;
-            background: #fffcf2; display: flex;
-            box-shadow: 0 0 50px rgba(0,0,0,0.5);
-            transform: rotateX(5deg); border-radius: 5px; overflow: hidden;
+            flex: 2; background: #fffcf2; border-radius: 10px;
+            display: flex; box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+            position: relative; overflow: hidden;
         }
 
-        .page { flex: 1; padding: 40px; overflow-y: auto; color: #333; line-height: 1.8; position: relative; }
-        .page-left { border-right: 1px solid #ddd; background: linear-gradient(to right, #eee, #fff 10%); }
-        .page-right { background: linear-gradient(to left, #eee, #fff 10%); }
+        .page { flex: 1; padding: 50px; overflow-y: auto; color: #333; line-height: 1.8; }
+        .page-left { border-right: 2px solid #eee; background: linear-gradient(to right, #f4f4f4, #fff 10%); }
+        .page-right { background: linear-gradient(to left, #f4f4f4, #fff 10%); }
 
-        /* Floating AI Action Button */
-        .fab {
-            position: fixed; bottom: 30px; right: 30px;
-            width: 60px; height: 60px; background: var(--android-green);
-            border-radius: 50%; display: flex; align-items: center; justify-content: center;
-            color: white; font-size: 24px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            cursor: pointer; z-index: 300;
+        /* Integrated AI & Notebook Panel */
+        .side-tools {
+            flex: 1; max-width: 400px; display: flex; flex-direction: column; gap: 15px;
+        }
+        .tool-window {
+            background: var(--surface); border-radius: 12px; padding: 20px;
+            display: flex; flex-direction: column; flex: 1; border: 1px solid #444;
+        }
+        .chat-history { flex: 1; overflow-y: auto; font-size: 14px; margin-bottom: 10px; }
+        textarea { width: 100%; height: 100%; background: #fdfdfd; border: 1px solid #ddd; border-radius: 8px; padding: 10px; resize: none; font-family: 'Courier New', Courier, monospace; }
+
+        /* Floating Controls */
+        .controls { position: absolute; bottom: 20px; right: 20px; display: flex; gap: 10px; }
+        .btn-fab { 
+            width: 50px; height: 50px; border-radius: 25px; border: none;
+            background: var(--accent); color: white; cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3); font-size: 20px;
         }
 
-        .close-btn { position: absolute; top: 20px; right: 20px; color: white; font-size: 30px; cursor: pointer; }
+        .close-btn { position: absolute; top: 10px; right: 20px; color: white; font-size: 40px; cursor: pointer; z-index: 2100; }
     </style>
 </head>
 <body>
 
-    <div class="app-bar">
-        <i class="fas fa-bars" style="margin-right: 20px;"></i>
-        <h2 style="font-size: 18px;">Pak-Syllabus Library (Classes 4-10)</h2>
+    <div class="top-nav">
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <i class="fas fa-bars"></i>
+            <span style="font-weight: bold; font-size: 1.2rem;">Pak-Tutor AI</span>
+        </div>
+        <div class="search-bar">
+            <i class="fas fa-search"></i>
+            <input type="text" id="libSearch" placeholder="Search Physics, Math, Islamiat..." onkeyup="filterBooks()">
+        </div>
+        <div style="display: flex; gap: 20px; align-items: center;">
+            <i class="fas fa-bell"></i>
+            <i class="fas fa-user-circle" style="font-size: 1.5rem;"></i>
+        </div>
     </div>
 
-    <div class="library-container" id="library">
-        </div>
-
-    <div id="book-overlay">
-        <span class="close-btn" onclick="closeBook()">&times;</span>
-        <div class="real-book-3d">
-            <div class="page page-left" id="p-left">
-                <h2 id="open-title">Title</h2>
-                <div id="open-content-1">Content Left</div>
+    <div class="app-container">
+        <div class="library-section" id="bookGrid">
             </div>
-            <div class="page page-right" id="p-right">
-                <div id="open-content-2" style="margin-top: 50px;">Content Right</div>
-                <div style="margin-top: 30px; border-top: 2px solid var(--ptb-green); padding-top: 10px;">
-                    <button onclick="readThis()" style="background:var(--ptb-green); color:white; border:none; padding:10px; border-radius:5px; cursor:pointer;">
-                        <i class="fas fa-volume-up"></i> Parh Kar Sunao
-                    </button>
+    </div>
+
+    <div id="reader-overlay">
+        <span class="close-btn" onclick="closeReader()">&times;</span>
+        <div class="reader-container">
+            <div class="real-book-3d">
+                <div class="page page-left">
+                    <h2 id="leftTitle" style="color: var(--primary);">Loading...</h2>
+                    <p id="leftContent"></p>
+                </div>
+                <div class="page page-right">
+                    <p id="rightContent" style="margin-top: 40px;"></p>
+                    <div class="controls">
+                        <button class="btn-fab" onclick="speakPage()" title="Read Aloud"><i class="fas fa-volume-up"></i></button>
+                        <button class="btn-fab" style="background: #555;" onclick="stopSpeech()" title="Stop"><i class="fas fa-stop"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="side-tools">
+                <div class="tool-window">
+                    <h3 style="margin-top:0;"><i class="fas fa-robot"></i> AI Teacher</h3>
+                    <div class="chat-history" id="aiChat">
+                        <p>Ask me about this chapter!</p>
+                    </div>
+                    <div style="display: flex; gap: 5px;">
+                        <input type="text" id="aiInput" placeholder="Ask question..." style="flex:1; padding:8px; border-radius:5px; border:1px solid #ccc;">
+                        <button onclick="askAI()" style="background:var(--primary); color:white; border:none; padding:8px 15px; border-radius:5px;"><i class="fas fa-paper-plane"></i></button>
+                    </div>
+                </div>
+                <div class="tool-window">
+                    <h3 style="margin-top:0;"><i class="fas fa-edit"></i> My Notes</h3>
+                    <textarea placeholder="Start writing your notes for this chapter..."></textarea>
                 </div>
             </div>
         </div>
-    </div>
-
-    <div class="fab" onclick="alert('AI Teacher Activated! Ask anything.')">
-        <i class="fas fa-robot"></i>
     </div>
 
     <script>
         const syllabus = [
-            { id: 1, class: "4", subject: "General Science", title: "Photosynthesis", content: "Plants make food using sunlight. Pauday suraj ki roshni istemal karte hain.", content2: "Important for exams: Define Chlorophyll and its role in leaves." },
-            { id: 2, class: "5", subject: "Mathematics", title: "Decimals", content: "Understanding parts of 10 and 100. Ashariya ka nizam samjhein.", content2: "Example: 0.5 is half of 1. Solve page 45 exercises." },
-            { id: 3, class: "9", subject: "Physics", title: "Newton's Laws", content: "First Law: Every body continues in its state of rest. Har jism apni harkat barqarar rakhta hai.", content2: "Second Law: F = ma. Force is mass times acceleration." },
-            { id: 4, class: "10", subject: "Biology", title: "Genetics", content: "DNA is the hereditary material. Insaan ki mawausi khusoosiyat DNA mein hoti hain.", content2: "Mendel's Laws explain how traits pass from parents to children." },
-            { id: 5, class: "9", subject: "Urdu", title: "Adab-e-Urdu", content: "Mirza Ghalib ki ghazal-goi aur unka usloob.", content2: "Tashreeh: Dil-e-nadan tujhe hua kya hai?" },
-            { id: 6, class: "10", subject: "Islamiat", title: "Zakat aur Ibadat", content: "Zakat ka nizam aur ma'ashi faiday.", content2: "Quran mein Namaz ke sath Zakat ka zikr aaya hai." }
+            { id: 1, class: "9", subject: "Physics", title: "Kinematics", content1: "Kinematics is the study of motion of objects without discussing the cause of motion. In this chapter, we learn about speed, velocity, and acceleration.", content2: "Important Equation: v = u + at. Urdu: Kinematics harkat ka mutala hai baghair iski wajah jane. Speed aur Velocity mein farq samjhein." },
+            { id: 2, class: "10", subject: "Biology", title: "Gaseous Exchange", content1: "In humans, the respiratory system consists of air passageways and lungs. Oxygen is absorbed into the blood.", content2: "Plants exchange gases through stomata. Insaan mein phephray oxygen jazb karte hain aur carbon dioxide nikaalte hain." },
+            { id: 3, class: "5", subject: "Islamiat", title: "Akhlaq-o-Aadaab", content1: "Islam teaches us to be respectful to parents and kind to neighbors. Truthfulness is the foundation of character.", content2: "Hadees: 'Tum mein se behtareen wo hai jiske akhlaq sab se ache hain.' Sach bolna nijaat deta hai." },
+            { id: 4, class: "4", subject: "English", title: "Nouns & Verbs", content1: "A Noun is a naming word. A Verb is an action word. Let's look at examples in sentences.", content2: "Example: 'Ali (Noun) is running (Verb)'. Practice: Identify 5 nouns from your room." },
+            { id: 5, class: "9", subject: "Math", title: "Matrices", content1: "A rectangular array of numbers enclosed in brackets is called a matrix. Rows and columns define its order.", content2: "Addition of matrices is only possible if their orders are same. Cramer's Rule is used to solve linear equations." },
+            { id: 6, class: "10", subject: "Urdu", title: "Ghazal: Ghalib", content1: "Mirza Ghalib ki ghazal 'Dil-e-nadaan tujhe hua kya hai' ki tashreeh aur ahm nukaat.", content2: "Ghalib ne is ghazal mein ishq aur be-basi ka zikr kiya hai. Mushkil alfaz: Nadaan (Be-waquf), Mudda'a (Maqsad)." }
         ];
 
-        const library = document.getElementById('library');
-
-        // Create Library Grid
-        syllabus.forEach(book => {
-            const div = document.createElement('div');
-            div.className = 'book-card';
-            div.onclick = () => openBook(book);
-            div.innerHTML = `
-                <div class="book-inner">
-                    <div class="book-cover">
-                        <i class="fas fa-book" style="font-size:30px; margin-bottom:10px;"></i>
-                        <div>${book.subject}<br><small>Class ${book.class}</small></div>
+        function initLibrary() {
+            const grid = document.getElementById('bookGrid');
+            grid.innerHTML = syllabus.map(book => `
+                <div class="book-card" onclick="openReader(${book.id})">
+                    <div class="book-cover-art">
+                        <i class="fas ${getBookIcon(book.subject)}"></i>
                     </div>
+                    <div style="font-weight:bold; font-size:14px;">${book.subject} ${book.class}</div>
+                    <div style="color:#666; font-size:12px;">${book.title}</div>
                 </div>
-                <p style="font-size:12px; font-weight:bold; text-align:center; margin-top:10px;">${book.title}</p>
-            `;
-            library.appendChild(div);
-        });
-
-        function openBook(book) {
-            document.getElementById('open-title').innerText = book.subject + " - " + book.title;
-            document.getElementById('open-content-1').innerText = book.content;
-            document.getElementById('open-content-2').innerText = book.content2;
-            document.getElementById('book-overlay').style.display = 'flex';
+            `).join('');
         }
 
-        function closeBook() {
-            document.getElementById('book-overlay').style.display = 'none';
-            window.speechSynthesis.cancel();
+        function getBookIcon(sub) {
+            if(sub.includes("Physics")) return "fa-atom";
+            if(sub.includes("Math")) return "fa-calculator";
+            if(sub.includes("Bio")) return "fa-dna";
+            if(sub.includes("Urdu") || sub.includes("English")) return "fa-pen-nib";
+            return "fa-book";
         }
 
-        function readThis() {
-            window.speechSynthesis.cancel();
-            const text = document.getElementById('open-content-1').innerText + " " + document.getElementById('open-content-2').innerText;
-            const msg = new SpeechSynthesisUtterance(text);
-            msg.lang = text.match(/[^\x00-\x7F]/) ? 'ur-PK' : 'en-US';
-            window.speechSynthesis.speak(msg);
+        function openReader(id) {
+            const book = syllabus.find(b => b.id === id);
+            document.getElementById('leftTitle').innerText = book.subject + ": " + book.title;
+            document.getElementById('leftContent').innerText = book.content1;
+            document.getElementById('rightContent').innerText = book.content2;
+            document.getElementById('reader-overlay').style.display = 'block';
         }
-    </script>
-</body>
-</html>
+
+        function closeReader() {
+            document.getElementById('reader-overlay').style.display = 'none';
+            stopSpeech();
+        }
+
+        function speakPage() {
+            stopSpeech();
+            const text = document.getElementById('leftContent').innerText + ". " + document.getElementById('rightContent').innerText;
+            const utter = new SpeechSynthesisUt
