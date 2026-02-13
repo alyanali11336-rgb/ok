@@ -3,229 +3,185 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pak-Tutor AI | 3D Library & PDF Reader</title>
+    <title>Pak-Tutor AI | Multi-Page Pro</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <style>
         :root {
-            --primary: #006633; /* Pakistani Green */
+            --primary: #006633;
             --accent: #3DDC84;
+            --bg: #f0f2f5;
             --surface: #ffffff;
-            --bg: #f1f3f4;
-            --text: #202124;
         }
 
-        body { margin: 0; font-family: 'Segoe UI', Tahoma, sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
+        body { margin: 0; font-family: 'Segoe UI', sans-serif; background: var(--bg); height: 100vh; display: flex; flex-direction: column; }
 
-        /* Modern App Bar */
-        .app-bar {
+        /* Top Header */
+        .app-header {
             height: 60px; background: var(--primary); color: white;
             display: flex; align-items: center; justify-content: space-between;
-            padding: 0 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            padding: 0 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
 
-        .main-layout { display: flex; height: calc(100vh - 60px); }
+        /* Pages Container */
+        .page { display: none; flex: 1; overflow-y: auto; padding: 20px; animation: fadeIn 0.3s ease; }
+        .page.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-        /* Library Sidebar */
-        .library-side {
-            width: 320px; background: var(--surface); border-right: 1px solid #ddd;
-            display: flex; flex-direction: column;
+        /* PAGE 1: LIBRARY */
+        .library-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 20px; }
+        .book-card { background: var(--surface); padding: 15px; border-radius: 12px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); cursor: pointer; border: 2px solid transparent; }
+        .book-card:hover { border-color: var(--accent); transform: translateY(-5px); }
+        .book-icon { font-size: 50px; color: var(--primary); margin-bottom: 10px; }
+
+        /* PAGE 2: 3D READER */
+        .reader-container { display: flex; flex-direction: column; align-items: center; height: 100%; }
+        .book-3d { width: 90%; max-width: 800px; height: 80vh; background: #fffcf2; border-radius: 5px; display: flex; box-shadow: 0 10px 30px rgba(0,0,0,0.3); border-left: 15px solid var(--primary); }
+        .page-side { flex: 1; padding: 30px; overflow-y: auto; line-height: 1.8; }
+        .reader-tools { margin-top: 20px; display: flex; gap: 20px; }
+
+        /* PAGE 3: NOTEBOOK & AI */
+        .notebook-container { display: flex; gap: 20px; height: 80vh; }
+        .ai-chat { flex: 1; background: var(--surface); border-radius: 15px; padding: 20px; display: flex; flex-direction: column; }
+        .chat-display { flex: 1; overflow-y: auto; border: 1px solid #eee; padding: 10px; margin-bottom: 10px; border-radius: 8px; }
+        .notes-area { flex: 1; background: var(--surface); border-radius: 15px; padding: 20px; }
+        textarea { width: 100%; height: 90%; border: 1px solid #ddd; border-radius: 8px; padding: 15px; resize: none; font-size: 16px; background: #fff9e6; }
+
+        /* Bottom Navigation Bar (Android Style) */
+        .bottom-nav {
+            height: 70px; background: var(--surface); border-top: 1px solid #ddd;
+            display: flex; justify-content: space-around; align-items: center;
         }
-        .upload-section { padding: 20px; border-bottom: 1px solid #eee; text-align: center; }
-        .books-list { flex: 1; overflow-y: auto; padding: 10px; }
-        .book-item {
-            padding: 12px; border-radius: 8px; margin-bottom: 8px; cursor: pointer;
-            display: flex; align-items: center; gap: 12px; background: #f9f9f9;
-            border: 1px solid transparent; transition: 0.2s;
-        }
-        .book-item:hover { border-color: var(--accent); background: #e8f5e9; }
+        .nav-btn { background: none; border: none; color: #777; cursor: pointer; font-size: 12px; font-weight: bold; }
+        .nav-btn i { font-size: 24px; display: block; margin-bottom: 4px; }
+        .nav-btn.active { color: var(--primary); }
 
-        /* Reader Area */
-        .reader-area { flex: 1; display: flex; flex-direction: column; background: #525659; position: relative; }
-        #pdf-canvas { max-width: 100%; height: auto; box-shadow: 0 0 20px rgba(0,0,0,0.5); display: none; }
-        .canvas-container { flex: 1; display: flex; justify-content: center; align-items: flex-start; overflow-y: auto; padding: 20px; }
-
-        /* 3D Real Book Container (For Built-in Content) */
-        .real-book-3d {
-            width: 90%; height: 90%; background: #fffcf2; border-radius: 5px;
-            display: flex; box-shadow: 0 10px 30px rgba(0,0,0,0.4);
-        }
-        .page { flex: 1; padding: 40px; overflow-y: auto; line-height: 1.8; }
-        .page-left { border-right: 1px solid #ddd; background: linear-gradient(to right, #eee, #fff 10%); }
-
-        /* AI Side Panel */
-        .ai-panel { width: 350px; background: var(--surface); border-left: 1px solid #ddd; display: flex; flex-direction: column; }
-        .panel-header { padding: 15px; background: #f8f9fa; border-bottom: 1px solid #ddd; font-weight: bold; }
-        .chat-box { flex: 1; padding: 15px; overflow-y: auto; font-size: 14px; }
-        .note-box { height: 200px; padding: 15px; border-top: 2px solid var(--primary); }
-        textarea { width: 100%; height: 80%; border: 1px solid #ddd; border-radius: 5px; padding: 10px; resize: none; }
-
-        /* Floating Controls */
-        .fab-controls {
-            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
-            background: rgba(0,0,0,0.7); padding: 10px 20px; border-radius: 30px;
-            display: flex; gap: 15px; color: white;
-        }
-        .fab-btn { cursor: pointer; font-size: 18px; }
-        .fab-btn:hover { color: var(--accent); }
-
-        /* Hidden PDF Input */
-        #pdf-upload { display: none; }
+        /* Upload Button */
+        .upload-btn { background: var(--accent); color: white; border: none; padding: 10px 20px; border-radius: 20px; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
 
-    <div class="app-bar">
-        <div style="display: flex; align-items: center; gap: 15px;">
-            <i class="fas fa-university"></i>
-            <span style="font-size: 1.2rem; font-weight: bold;">Pak-Tutor AI v2.0</span>
-        </div>
-        <div style="display: flex; align-items: center; gap: 20px;">
-            <button onclick="document.getElementById('pdf-upload').click()" style="background: var(--accent); border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold;">
-                <i class="fas fa-file-upload"></i> Upload PDF
-            </button>
-            <i class="fas fa-cog"></i>
+    <header class="app-header">
+        <div style="font-size: 20px; font-weight: bold;"><i class="fas fa-user-graduate"></i> Pak-Tutor AI</div>
+        <button class="upload-btn" onclick="document.getElementById('pdf-file').click()">
+            <i class="fas fa-plus"></i> Upload PDF
+        </button>
+        <input type="file" id="pdf-file" hidden accept=".pdf">
+    </header>
+
+    <div id="library" class="page active">
+        <h2><i class="fas fa-books"></i> My Library</h2>
+        <div class="library-grid">
+            <div class="book-card" onclick="openBook('Physics Class 9', 'Newton’s Laws of Motion. 1st Law: Inertia. 2nd Law: F=ma. 3rd Law: Action and Reaction.')">
+                <i class="fas fa-atom book-icon"></i>
+                <div>Physics 9</div>
+            </div>
+            <div class="book-card" onclick="openBook('Math Class 10', 'Quadratic Equations: ax^2 + bx + c = 0. Solving by factorization or formula.')">
+                <i class="fas fa-calculator book-icon"></i>
+                <div>Math 10</div>
+            </div>
+            <div class="book-card" onclick="openBook('Urdu Class 9', 'Ghalib ki Ghazalgoi. Mirza Ghalib Urdu adab ke azeem shayar hain.')">
+                <i class="fas fa-pen-nib book-icon"></i>
+                <div>Urdu 9</div>
+            </div>
         </div>
     </div>
 
-    <input type="file" id="pdf-upload" accept="application/pdf">
-
-    <div class="main-layout">
-        <aside class="library-side">
-            <div class="upload-section">
-                <h4>My Library</h4>
-                <p style="font-size: 11px; color: #666;">Choose Syllabus or Upload PDF</p>
-            </div>
-            <div class="books-list" id="booksList">
-                <div class="book-item" onclick="loadInternal('Physics 9', 'Matter and Energy', 'Newton’s Laws of motion govern the physical world. F=ma is the key.')">
-                    <i class="fas fa-atom" style="color:var(--primary)"></i> Physics Class 9
+    <div id="reader" class="page">
+        <div class="reader-container">
+            <div class="book-3d">
+                <div class="page-side" style="border-right: 1px solid #eee;">
+                    <h2 id="r-title">Book Title</h2>
+                    <p id="r-content">Select a book to read...</p>
                 </div>
-                <div class="book-item" onclick="loadInternal('Biology 10', 'Life Science', 'The human heart pumps blood to the whole body through vessels.')">
-                    <i class="fas fa-heartbeat" style="color:red"></i> Biology Class 10
-                </div>
-                <div class="book-item" onclick="loadInternal('Islamiat 5', 'Tauheed', 'Allah is the Creator of everything in this universe.')">
-                    <i class="fas fa-star-and-crescent" style="color:var(--primary)"></i> Islamiat Class 5
-                </div>
-            </div>
-        </aside>
-
-        <main class="reader-area">
-            <div class="canvas-container" id="canvasContainer">
-                <canvas id="pdf-canvas"></canvas>
-                
-                <div class="real-book-3d" id="internalBook">
-                    <div class="page page-left">
-                        <h2 id="leftHeading">Welcome</h2>
-                        <p id="leftTxt">Please select a book or upload a PDF to start learning. AI will help you read and understand.</p>
-                    </div>
-                    <div class="page">
-                        <p id="rightTxt" style="margin-top:50px;"></p>
+                <div class="page-side">
+                    <p style="margin-top: 50px; color: #666;">AI is analyzing this page for better understanding...</p>
+                    <div style="background: #e8f5e9; padding: 15px; border-radius: 10px; margin-top: 20px;">
+                        <strong>Quick Fact:</strong> <span id="r-fact">Important exam point will appear here.</span>
                     </div>
                 </div>
             </div>
-
-            <div class="fab-controls">
-                <i class="fas fa-chevron-left fab-btn" onclick="prevPage()"></i>
-                <span id="page-num">Page 1</span>
-                <i class="fas fa-chevron-right fab-btn" onclick="nextPage()"></i>
-                <div style="width: 2px; background: #555; height: 20px;"></div>
-                <i class="fas fa-play fab-btn" onclick="startReading()"></i>
-                <i class="fas fa-stop fab-btn" onclick="stopReading()"></i>
+            <div class="reader-tools">
+                <button class="upload-btn" onclick="startTTS()" style="background: var(--primary);"><i class="fas fa-volume-up"></i> Read Aloud</button>
+                <button class="upload-btn" onclick="stopTTS()" style="background: #e74c3c;"><i class="fas fa-stop"></i> Stop</button>
             </div>
-        </main>
-
-        <aside class="ai-panel">
-            <div class="panel-header"><i class="fas fa-robot"></i> AI Teacher Support</div>
-            <div class="chat-box" id="chat">
-                <div style="background:#e8f5e9; padding:8px; border-radius:5px; margin-bottom:10px;">
-                    Assalam-o-Alaikum! Main apka tutor hoon. Is page se mutaliq koi bhi sawal puchen.
-                </div>
-            </div>
-            <div style="padding:10px; display:flex; gap:5px;">
-                <input type="text" id="aiIn" placeholder="Sawal puchen..." style="flex:1; padding:8px; border-radius:5px; border:1px solid #ddd;">
-                <button onclick="askAI()" style="background:var(--primary); color:white; border:none; padding:8px 12px; border-radius:5px;"><i class="fas fa-paper-plane"></i></button>
-            </div>
-            <div class="note-box">
-                <h4><i class="fas fa-sticky-note"></i> Smart Notebook</h4>
-                <textarea placeholder="Important points likhein..."></textarea>
-            </div>
-        </aside>
+        </div>
     </div>
+
+    <div id="notebook" class="page">
+        <div class="notebook-container">
+            <div class="ai-chat">
+                <h3><i class="fas fa-robot"></i> AI Teacher Chat</h3>
+                <div class="chat-display" id="chat">
+                    <p><strong>AI:</strong> Assalam-o-Alaikum! Main apka tutor hoon. Is chapter mein kya cheez mushkil lag rahi hai?</p>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="ai-input" placeholder="Ask a question..." style="flex:1; padding: 10px; border-radius: 5px; border: 1px solid #ccc;">
+                    <button class="upload-btn" onclick="askAI()">Ask</button>
+                </div>
+            </div>
+            <div class="notes-area">
+                <h3><i class="fas fa-sticky-note"></i> My Study Notes</h3>
+                <textarea placeholder="Write your chapter summary here..."></textarea>
+            </div>
+        </div>
+    </div>
+
+    <nav class="bottom-nav">
+        <button class="nav-btn active" onclick="showPage('library', this)">
+            <i class="fas fa-book-open"></i>Library
+        </button>
+        <button class="nav-btn" onclick="showPage('reader', this)">
+            <i class="fas fa-glasses"></i>Reader
+        </button>
+        <button class="nav-btn" onclick="showPage('notebook', this)">
+            <i class="fas fa-user-edit"></i>AI & Notes
+        </button>
+    </nav>
 
     <script>
-        // PDF.js Initial Config
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
-
-        let pdfDoc = null, pageNum = 1, canvas = document.getElementById('pdf-canvas'), ctx = canvas.getContext('2d');
         let synth = window.speechSynthesis;
 
-        // Load PDF from File Input
-        document.getElementById('pdf-upload').addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file.type !== 'application/pdf') return;
+        function showPage(pageId, btn) {
+            // Hide all pages
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            // Show selected page
+            document.getElementById(pageId).classList.add('active');
             
-            const fileReader = new FileReader();
-            fileReader.onload = function() {
-                const pdfData = new Uint8Array(this.result);
-                pdfjsLib.getDocument({data: pdfData}).promise.then(pdf => {
-                    pdfDoc = pdf;
-                    document.getElementById('internalBook').style.display = 'none';
-                    canvas.style.display = 'block';
-                    renderPage(pageNum);
-                });
-            };
-            fileReader.readAsArrayBuffer(file);
-        });
-
-        function renderPage(num) {
-            pdfDoc.getPage(num).then(page => {
-                const viewport = page.getViewport({scale: 1.5});
-                canvas.height = viewport.height;
-                canvas.width = viewport.width;
-                page.render({canvasContext: ctx, viewport: viewport});
-                document.getElementById('page-num').innerText = `Page ${num} / ${pdfDoc.numPages}`;
-            });
+            // Update Nav Buttons
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
         }
 
-        function loadInternal(title, left, right) {
-            pdfDoc = null;
-            canvas.style.display = 'none';
-            document.getElementById('internalBook').style.display = 'flex';
-            document.getElementById('leftHeading').innerText = title;
-            document.getElementById('leftTxt').innerText = left;
-            document.getElementById('rightTxt').innerText = right;
+        function openBook(title, content) {
+            document.getElementById('r-title').innerText = title;
+            document.getElementById('r-content').innerText = content;
+            document.getElementById('r-fact').innerText = "Exam key: This chapter carries 10 marks.";
+            showPage('reader', document.querySelectorAll('.nav-btn')[1]);
         }
 
-        function startReading() {
-            stopReading();
-            let text = "";
-            if(pdfDoc) {
-                // In real version, we use PDF.js getTextContent
-                text = "Reading PDF page " + pageNum + ". To analyze deep text, please connect AI API.";
-            } else {
-                text = document.getElementById('leftTxt').innerText + " " + document.getElementById('rightTxt').innerText;
-            }
+        function startTTS() {
+            stopTTS();
+            const text = document.getElementById('r-content').innerText;
             const utter = new SpeechSynthesisUtterance(text);
             utter.lang = text.match(/[^\x00-\x7F]/) ? 'ur-PK' : 'en-US';
             synth.speak(utter);
         }
 
-        function stopReading() { synth.cancel(); }
+        function stopTTS() { synth.cancel(); }
 
         function askAI() {
-            const input = document.getElementById('aiIn');
+            const input = document.getElementById('ai-input');
             const chat = document.getElementById('chat');
             if(!input.value) return;
-            chat.innerHTML += `<div><b>You:</b> ${input.value}</div>`;
+            chat.innerHTML += `<p><strong>You:</strong> ${input.value}</p>`;
             setTimeout(() => {
-                chat.innerHTML += `<div style="color:var(--primary); margin-top:5px;"><b>AI Teacher:</b> Bohat acha sawal hai! Page ${pageNum} ke mutabiq iska maqsad...</div>`;
+                chat.innerHTML += `<p style="color:var(--primary)"><strong>AI Teacher:</strong> Bohat acha sawal hai! Iska matlab ye hai ke...</p>`;
                 chat.scrollTop = chat.scrollHeight;
             }, 600);
             input.value = "";
         }
-
-        function nextPage() { if(pdfDoc && pageNum < pdfDoc.numPages) { pageNum++; renderPage(pageNum); } }
-        function prevPage() { if(pdfDoc && pageNum > 1) { pageNum--; renderPage(pageNum); } }
     </script>
 </body>
 </html>
