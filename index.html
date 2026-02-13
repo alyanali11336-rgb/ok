@@ -1,19 +1,115 @@
 <!DOCTYPE html>
-<html lang="ur">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>9th/10th AI Teacher - Pakistan</title>
+    <title>AI Smart Tutor - Pakistan Syllabus</title>
     <style>
-        :root {
-            --primary-color: #27ae60;
-            --bg-color: #f4f7f6;
+        * { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        body { margin: 0; display: flex; height: 100vh; background: #f0f2f5; }
+
+        /* Sidebar */
+        .sidebar { width: 250px; background: #006633; color: white; padding: 20px; display: flex; flex-direction: column; }
+        .sidebar h2 { font-size: 20px; border-bottom: 2px solid #ffd700; padding-bottom: 10px; }
+        .nav-links { list-style: none; padding: 0; flex-grow: 1; }
+        .nav-links li { padding: 12px; cursor: pointer; border-radius: 5px; margin-bottom: 5px; background: rgba(255,255,255,0.1); }
+        .nav-links li:hover { background: #ffd700; color: black; }
+
+        /* Main Reader */
+        .reader-section { flex-grow: 1; display: flex; flex-direction: column; background: white; box-shadow: -2px 0 5px rgba(0,0,0,0.1); }
+        .toolbar { padding: 15px; background: #fff; border-bottom: 1px solid #ddd; display: flex; gap: 10px; }
+        .content-area { flex-grow: 1; padding: 40px; overflow-y: auto; font-size: 1.2rem; line-height: 1.6; color: #333; }
+
+        /* AI & Note Panel */
+        .side-panel { width: 350px; border-left: 2px solid #ddd; display: flex; flex-direction: column; background: #fafafa; }
+        .ai-chat { flex: 1; display: flex; flex-direction: column; padding: 15px; border-bottom: 1px solid #ddd; }
+        #chat-display { flex-grow: 1; background: white; border: 1px solid #ccc; border-radius: 5px; padding: 10px; overflow-y: auto; margin-bottom: 10px; font-size: 14px; }
+        .notebook { flex: 1; padding: 15px; }
+        textarea { width: 100%; height: 150px; padding: 10px; border-radius: 5px; border: 1px solid #ccc; }
+
+        /* Buttons */
+        button { padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .btn-read { background: #28a745; color: white; }
+        .btn-stop { background: #dc3545; color: white; }
+        .btn-ask { background: #007bff; color: white; width: 100%; }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <h2>AI Tutor (4-10)</h2>
+        <ul class="nav-links">
+            <li onclick="loadBook('Class 9 Physics', 'Physics matter aur energy ka taluq hai...')">Class 9 Physics</li>
+            <li onclick="loadBook('Class 10 Biology', 'Biology zindagi ka mutala hai...')">Class 10 Biology</li>
+            <li onclick="loadBook('Class 5 Science', 'Pauday suraj ki roshni se khana banate hain...')">Class 5 Science</li>
+            <li onclick="loadBook('Islamiat', 'Quran Majeed akhri kitaba hai...')">Religious Books</li>
+        </ul>
+    </div>
+
+    <div class="reader-section">
+        <div class="toolbar">
+            <button class="btn-read" onclick="startReading()">🔊 Start Reading</button>
+            <button class="btn-stop" onclick="stopReading()">🛑 Stop</button>
+            <strong id="book-title" style="margin-left: 20px;">Class 9 Physics</strong>
+        </div>
+        <div class="content-area" id="book-text">
+            <h3>Chapter 1: Introduction</h3>
+            <p>Physics is the branch of science that deals with the properties of matter and energy. It explains how the universe behaves from the smallest particles to the largest galaxies.</p>
+            <p>Physics science ki wo shakh hai jo mada aur tawana'i ke taluq ko samjhati hai.</p>
+        </div>
+    </div>
+
+    <div class="side-panel">
+        <div class="ai-chat">
+            <h3>🤖 AI Teacher</h3>
+            <div id="chat-display">Pochen! Main aapki madad ke liye hazir hun...</div>
+            <input type="text" id="user-question" placeholder="Ask a question..." style="width:100%; padding:8px; margin-bottom:5px;">
+            <button class="btn-ask" onclick="askAI()">Ask AI Teacher</button>
+        </div>
+        <div class="notebook">
+            <h3>📝 Smart Notes</h3>
+            <textarea id="note-pad" placeholder="Write your notes here... AI will help you save them."></textarea>
+        </div>
+    </div>
+
+    <script>
+        let synth = window.speechSynthesis;
+        let utterance;
+
+        function loadBook(title, content) {
+            document.getElementById('book-title').innerText = title;
+            document.getElementById('book-text').innerHTML = `<h3>${title}</h3><p>${content}</p>`;
+            stopReading();
         }
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg-color);
-            margin: 0;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
+
+        function startReading() {
+            stopReading();
+            const text = document.getElementById('book-text').innerText;
+            utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'en-US'; // Default English, can be set to 'ur-PK' for Urdu
+            synth.speak(utterance);
         }
+
+        function stopReading() {
+            synth.cancel();
+        }
+
+        function askAI() {
+            const question = document.getElementById('user-question').value;
+            const chatDisplay = document.getElementById('chat-display');
+            
+            if (question.trim() === "") return;
+
+            chatDisplay.innerHTML += `<br><b>You:</b> ${question}`;
+            
+            // Simulating AI Response for First Version
+            setTimeout(() => {
+                chatDisplay.innerHTML += `<br><b>AI:</b> Bohat acha sawal hai! Iska jawab book ke page 12 par maujood hai. Kya main mazeed samjhaun?`;
+                chatDisplay.scrollTop = chatDisplay.scrollHeight;
+            }, 1000);
+
+            document.getElementById('user-question').value = "";
+        }
+    </script>
+</body>
+</html>
