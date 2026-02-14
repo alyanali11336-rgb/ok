@@ -2,46 +2,40 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Frontline | Tactical Co-op</title>
+    <title>Frontline | Delta Realism</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; font-family: 'Inter', sans-serif; }
+        body { margin: 0; overflow: hidden; background: #cce0ff; font-family: 'Inter', sans-serif; }
         #ui { position: absolute; inset: 0; pointer-events: none; }
         
         /* Tactical HUD */
         #comms {
-            position: absolute; top: 30px; left: 30px; background: rgba(0,0,0,0.85);
-            padding: 15px; border-left: 3px solid #00ff00; color: white; width: 300px;
-            font-size: 13px; backdrop-filter: blur(10px);
+            position: absolute; top: 30px; left: 30px; background: rgba(0,0,0,0.8);
+            padding: 20px; border-left: 4px solid #fff; color: white; width: 320px;
+            font-size: 13px; backdrop-filter: blur(15px); border-radius: 0 4px 4px 0;
         }
-        #squad-status {
-            position: absolute; bottom: 40px; right: 40px; color: white;
-            background: rgba(0,0,0,0.5); padding: 10px; border-radius: 4px;
-        }
-        .member { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }
-        .status-dot { width: 8px; height: 8px; background: #00ff00; border-radius: 50%; }
-
-        #crosshair { position: absolute; top: 50%; left: 50%; width: 6px; height: 6px; background: rgba(255,255,255,0.8); border-radius: 50%; transform: translate(-50%, -50%); }
+        #squad-list { position: absolute; bottom: 40px; right: 40px; color: white; text-align: right; }
+        .member { font-size: 12px; letter-spacing: 2px; margin-top: 5px; text-shadow: 2px 2px 4px #000; }
         
-        #overlay { position: absolute; inset: 0; background: #fff; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; }
-        button { padding: 20px 60px; background: #000; color: #fff; border: none; font-weight: 900; cursor: pointer; letter-spacing: 5px; }
+        #crosshair { position: absolute; top: 50%; left: 50%; width: 4px; height: 4px; background: white; border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 10px #fff; }
+
+        #overlay { position: absolute; inset: 0; background: #fff; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; transition: opacity 0.8s; }
+        button { padding: 25px 80px; background: #000; color: #fff; border: none; font-weight: 900; cursor: pointer; letter-spacing: 8px; font-size: 16px; }
     </style>
 </head>
 <body>
 
     <div id="overlay">
-        <h1 style="font-size: 5vw; margin: 0; letter-spacing: -2px;">SQUADRON</h1>
-        <p style="color: #888; margin-bottom: 30px;">CO-OP TACTICAL AI INITIALIZED</p>
-        <button onclick="controls.lock()">START PATROL</button>
+        <h1 style="font-size: 6vw; margin: 0; letter-spacing: -5px; color: #000;">DELTA</h1>
+        <p style="color: #666; margin-bottom: 40px; letter-spacing: 4px;">PHYSICS-LOCKED TACTICAL SIMULATION</p>
+        <button onclick="controls.lock()">ENGAGE SQUAD</button>
     </div>
 
     <div id="ui">
-        <div id="comms"><strong>HQ:</strong> "Ghost is linked to your comms. Move out."</div>
-        
-        <div id="squad-status">
-            <div class="member"><div class="status-dot"></div> <span>YOU (LEADER)</span></div>
-            <div class="member"><div class="status-dot"></div> <span>GHOST (CO-OP AI)</span></div>
+        <div id="comms"><strong>OPERATOR:</strong> "Gravity lock engaged. Squad moving to waypoint Alpha. Visual markers active."</div>
+        <div id="squad-list">
+            <div class="member">LEADER [YOU]</div>
+            <div class="member" style="color: #aaa;">GHOST [AI FRIEND]</div>
         </div>
-
         <div id="crosshair"></div>
     </div>
 
@@ -58,71 +52,91 @@
         import * as THREE from 'three';
         import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 
-        // --- ENGINE ---
+        // --- CORE ENGINE ---
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0xdcefff);
-        scene.fog = new THREE.FogExp2(0xdcefff, 0.012);
+        scene.background = new THREE.Color(0x87ceeb);
+        scene.fog = new THREE.FogExp2(0x87ceeb, 0.015);
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
         renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         document.body.appendChild(renderer.domElement);
 
         window.controls = new PointerLockControls(camera, document.body);
 
-        // --- LIGHTS ---
-        scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-        const sun = new THREE.DirectionalLight(0xffffff, 2.5);
+        // --- REALISTIC LIGHTING ---
+        scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+        const sun = new THREE.DirectionalLight(0xffffff, 2.8);
         sun.position.set(50, 100, 50);
         sun.castShadow = true;
+        sun.shadow.mapSize.set(2048, 2048);
         scene.add(sun);
 
-        // --- WORLD ---
-        const ground = new THREE.Mesh(new THREE.PlaneGeometry(1000, 1000), new THREE.MeshStandardMaterial({color: 0x3a4d23}));
-        ground.rotation.x = -Math.PI/2; ground.receiveShadow = true;
-        scene.add(ground);
-
-        // --- CHARACTER FACTORY ---
-        function createSoldier(bodyCol, skinCol, nameTag) {
+        // --- CHARACTER ARCHITECT (Realistic Proportion) ---
+        function createRealisticSoldier(mainColor, skinColor) {
             const group = new THREE.Group();
-            const mat = new THREE.MeshStandardMaterial({ color: bodyCol });
-            
-            const torso = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.8, 0.4), mat);
-            torso.position.y = 1.2;
-            const head = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), new THREE.MeshStandardMaterial({color: skinCol}));
-            head.position.y = 1.8;
+            const fabric = new THREE.MeshStandardMaterial({ color: mainColor, roughness: 0.8 });
+            const skin = new THREE.MeshStandardMaterial({ color: skinColor });
+            const tactical = new THREE.MeshStandardMaterial({ color: 0x111111 });
 
-            const legL = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.8, 0.2), mat);
+            // Torso & Vest
+            const torso = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.7, 0.3), fabric);
+            torso.position.y = 1.15;
+            const vest = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.4, 0.35), tactical);
+            vest.position.y = 1.2;
+            
+            // Head & Helmet
+            const head = new THREE.Mesh(new THREE.SphereGeometry(0.18, 16, 16), skin);
+            head.position.y = 1.65;
+            const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2), tactical);
+            helmet.position.y = 1.68;
+
+            // Limbs
+            const legL = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.08, 0.8), fabric);
             legL.position.set(0.15, 0.4, 0);
-            const legR = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.8, 0.2), mat);
+            const legR = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.08, 0.8), fabric);
             legR.position.set(-0.15, 0.4, 0);
 
-            const gun = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.15, 0.8), new THREE.MeshStandardMaterial({color: 0x000}));
-            gun.position.set(0.3, 1.3, 0.4);
+            const armL = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.7), fabric);
+            armL.position.set(0.35, 1.2, 0);
+            const armR = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.7), fabric);
+            armR.position.set(-0.35, 1.2, 0);
 
-            group.add(torso, head, legL, legR, gun);
-            group.limbs = { legL, legR };
+            // Weapon
+            const weapon = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.12, 0.9), tactical);
+            weapon.position.set(0.3, 1.2, 0.4);
+
+            group.add(torso, vest, head, helmet, legL, legR, armL, armR, weapon);
+            group.limbs = { legL, legR, armL, armR };
+            group.traverse(n => { if(n.isMesh) n.castShadow = n.receiveShadow = true; });
             return group;
         }
 
-        // YOU & GHOST (The Friend)
-        const playerModel = createSoldier(0x1a2e1a, 0xffdbac);
-        const friend = createSoldier(0x1a1a2e, 0xffdbac); // Blueish tactical gear
-        scene.add(playerModel, friend);
+        const playerModel = createRealisticSoldier(0x2d3436, 0xffdbac);
+        const ghostFriend = createRealisticSoldier(0x34495e, 0xffdbac);
+        scene.add(playerModel, ghostFriend);
 
         const enemies = [];
-        for(let i=0; i<12; i++) {
-            const e = createSoldier(0x331111, 0xff0000);
+        for(let i=0; i<10; i++) {
+            const e = createRealisticSoldier(0x1a1a1a, 0xff0000); // Red skin for visibility
             e.position.set((Math.random()-0.5)*150, 0, (Math.random()-0.5)*150);
             scene.add(e);
             enemies.push(e);
         }
 
-        // --- ANIMATION & LOGIC ---
-        let velocity = new THREE.Vector3();
-        let keys = {};
+        const ground = new THREE.Mesh(new THREE.PlaneGeometry(1000, 1000), new THREE.MeshStandardMaterial({color: 0x4a6741}));
+        ground.rotation.x = -Math.PI/2; ground.receiveShadow = true;
+        scene.add(ground);
+
+        // --- RIGID PHYSICS ENGINE ---
+        let playerPos = new THREE.Vector3(0, 0, 0);
+        let verticalVelocity = 0;
+        let isGrounded = true;
+        const keys = {};
+
         document.addEventListener('keydown', (e) => keys[e.code] = true);
         document.addEventListener('keyup', (e) => keys[e.code] = false);
 
@@ -131,50 +145,64 @@
             const time = Date.now() * 0.01;
 
             if(controls.isLocked) {
-                // Gravity & Jump
-                velocity.y -= 0.3;
-                camera.position.y += velocity.y * 0.016;
-                if(camera.position.y < 1.7) { camera.position.y = 1.7; velocity.y = 0; }
-                if(keys['Space'] && camera.position.y <= 1.7) velocity.y = 8;
+                // 1. Gravity Logic (Clamped to prevent fly error)
+                verticalVelocity -= 0.35; 
+                playerPos.y += verticalVelocity * 0.016;
 
-                // Player Move
-                let speed = keys['ShiftLeft'] ? 0.3 : 0.15;
-                if(keys['KeyW']) controls.moveForward(speed);
-                if(keys['KeyS']) controls.moveForward(-speed);
-                if(keys['KeyA']) controls.moveRight(-speed);
-                if(keys['KeyD']) controls.moveRight(speed);
-
-                // Sync Player Model
-                playerModel.position.copy(camera.position);
-                playerModel.position.y -= 1.6;
-                playerModel.rotation.y = camera.rotation.y;
-
-                // CO-OP FRIEND AI (GHOST)
-                const targetPos = playerModel.position.clone().add(new THREE.Vector3(2, 0, 2).applyQuaternion(playerModel.quaternion));
-                friend.position.lerp(targetPos, 0.05);
-                friend.lookAt(playerModel.position.x + 10, 0, playerModel.position.z + 10);
-
-                // Limb Animation
-                const isMoving = (keys['KeyW'] || keys['KeyS'] || keys['KeyA'] || keys['KeyD']);
-                if(isMoving) {
-                    playerModel.limbs.legL.rotation.x = Math.sin(time) * 0.5;
-                    playerModel.limbs.legR.rotation.x = -Math.sin(time) * 0.5;
-                    // Friend mimics your movement
-                    friend.limbs.legL.rotation.x = Math.sin(time) * 0.5;
-                    friend.limbs.legR.rotation.x = -Math.sin(time) * 0.5;
+                const minHeight = keys['KeyC'] ? 0.8 : 1.7;
+                if(playerPos.y <= minHeight) {
+                    playerPos.y = minHeight;
+                    verticalVelocity = 0;
+                    isGrounded = true;
                 }
 
-                // Camera Shoulder Offset
-                const camOffset = new THREE.Vector3(1.0, 0.5, 3.5).applyQuaternion(camera.quaternion);
-                camera.position.add(camOffset);
+                if(keys['Space'] && isGrounded) {
+                    verticalVelocity = 8;
+                    isGrounded = false;
+                }
 
-                // Enemy AI
+                // 2. Lateral Movement
+                let speed = (keys['ShiftLeft'] ? 0.35 : 0.15) * (keys['KeyC'] ? 0.5 : 1);
+                const moveDir = new THREE.Vector3();
+                if(keys['KeyW']) moveDir.z -= 1; if(keys['KeyS']) moveDir.z += 1;
+                if(keys['KeyA']) moveDir.x -= 1; if(keys['KeyD']) moveDir.x += 1;
+                moveDir.normalize().applyQuaternion(camera.quaternion);
+                
+                playerPos.x += moveDir.x * speed;
+                playerPos.z += moveDir.z * speed;
+
+                // 3. Sync Models & Camera
+                playerModel.position.copy(playerPos);
+                playerModel.position.y -= (keys['KeyC'] ? 0.8 : 1.6);
+                playerModel.rotation.y = camera.rotation.y;
+
+                // Locked Camera Attach (Third Person)
+                const camOffset = new THREE.Vector3(0.9, 0.4, 3.8).applyQuaternion(camera.quaternion);
+                camera.position.copy(playerPos).add(camOffset);
+
+                // 4. Friend AI (Ghost)
+                const followPos = playerPos.clone().add(new THREE.Vector3(2, 0, 1.5).applyQuaternion(playerModel.quaternion));
+                ghostFriend.position.lerp(followPos, 0.06);
+                ghostFriend.lookAt(playerPos.x + 5, 0, playerPos.z + 5);
+
+                // 5. Procedural Animation
+                const isMoving = moveDir.length() > 0;
+                [playerModel, ghostFriend].forEach(m => {
+                    if(isMoving || m === ghostFriend) {
+                        const walkWave = Math.sin(time * 1.2);
+                        m.limbs.legL.rotation.x = walkWave * 0.6;
+                        m.limbs.legR.rotation.x = -walkWave * 0.6;
+                    }
+                });
+
+                // Enemy High-Vis Tracking
                 enemies.forEach(en => {
-                    if(en.position.distanceTo(playerModel.position) < 50) {
-                        en.lookAt(playerModel.position);
-                        en.translateZ(0.06);
-                        en.limbs.legL.rotation.x = Math.sin(time) * 0.5;
-                        en.limbs.legR.rotation.x = -Math.sin(time) * 0.5;
+                    const d = en.position.distanceTo(playerPos);
+                    if(d < 60) {
+                        en.lookAt(playerPos.x, 0, playerPos.z);
+                        en.translateZ(0.08);
+                        en.limbs.legL.rotation.x = Math.sin(time) * 0.6;
+                        en.limbs.legR.rotation.x = -Math.sin(time) * 0.6;
                     }
                 });
             }
@@ -182,8 +210,8 @@
         }
         animate();
 
-        controls.addEventListener('lock', () => document.getElementById('overlay').style.display='none');
-        controls.addEventListener('unlock', () => document.getElementById('overlay').style.display='flex');
+        controls.addEventListener('lock', () => document.getElementById('overlay').style.opacity='0');
+        controls.addEventListener('unlock', () => document.getElementById('overlay').style.opacity='1');
     </script>
 </body>
 </html>
