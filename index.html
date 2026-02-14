@@ -3,45 +3,55 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VANGUARD | AAA FOREST OPS</title>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Rajdhani:wght@500&display=swap" rel="stylesheet">
+    <title>VANGUARD | DAYLIGHT OPS</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Rajdhani:wght@600&display=swap" rel="stylesheet">
     <style>
-        body { margin: 0; background: #020202; color: #fff; font-family: 'Rajdhani', sans-serif; overflow: hidden; }
+        body { margin: 0; background: #87CEEB; color: #fff; font-family: 'Rajdhani', sans-serif; overflow: hidden; }
         canvas { display: block; position: fixed; top: 0; left: 0; z-index: 1; }
         
         #ui-layer { 
-            position: relative; z-index: 10; height: 100vh; 
-            background: linear-gradient(90deg, rgba(0,0,0,0.7) 0%, transparent 60%);
-            display: flex; flex-direction: column; justify-content: center; padding-left: 80px;
+            position: absolute; z-index: 10; width: 100%; height: 100%; 
+            background: rgba(0,0,0,0.2);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            transition: opacity 0.5s;
         }
 
-        h1 { font-family: 'Orbitron'; font-size: 5rem; margin: 0; letter-spacing: 15px; color: #00ffcc; text-shadow: 0 0 30px rgba(0,255,204,0.4); }
-        p { letter-spacing: 5px; color: #aaa; margin-bottom: 50px; }
-
-        .menu { display: flex; flex-direction: column; gap: 15px; }
-        .btn {
-            background: rgba(255,255,255,0.05); border: 1px solid rgba(0,255,204,0.3);
-            color: white; padding: 18px 50px; width: 280px; font-size: 1.4rem; cursor: pointer;
-            transition: all 0.3s; text-transform: uppercase; letter-spacing: 2px;
-            clip-path: polygon(0% 0%, 90% 0%, 100% 30%, 100% 100%, 10% 100%, 0% 70%);
+        .lobby-card {
+            background: rgba(0, 0, 0, 0.7);
+            padding: 50px;
+            border-top: 4px solid #00ffcc;
+            text-align: center;
+            backdrop-filter: blur(10px);
         }
-        .btn:hover { background: #00ffcc; color: #000; box-shadow: 0 0 20px #00ffcc; transform: scale(1.05); }
 
-        .hud-info { position: absolute; bottom: 30px; left: 80px; font-size: 0.9rem; color: #444; }
-        b { color: #00ffcc; }
+        h1 { font-family: 'Orbitron'; font-size: 4rem; margin: 0; letter-spacing: 10px; color: #fff; }
+        p { letter-spacing: 3px; color: #00ffcc; margin-bottom: 30px; font-size: 1.2rem; }
+
+        .btn-deploy {
+            background: #00ffcc; border: none; color: #000;
+            padding: 20px 80px; font-size: 1.8rem; font-weight: bold; cursor: pointer;
+            text-transform: uppercase; transition: 0.3s;
+            clip-path: polygon(10% 0, 100% 0, 90% 100%, 0 100%);
+        }
+        .btn-deploy:hover { background: #fff; transform: scale(1.1); box-shadow: 0 0 30px #00ffcc; }
+
+        #crosshair {
+            position: fixed; top: 50%; left: 50%; width: 20px; height: 20px;
+            border: 2px solid rgba(0, 255, 204, 0.5); border-radius: 50%;
+            transform: translate(-50%, -50%); z-index: 5; display: none;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
+    <div id="crosshair"></div>
+
     <div id="ui-layer">
-        <h1>VANGUARD</h1>
-        <p>SECTOR: DEEP FOREST // 04:00 HRS</p>
-        <div class="menu">
-            <button class="btn">Deploy to Forest</button>
-            <button class="btn">Armory</button>
-            <button class="btn">Options</button>
-            <button class="btn">Exit</button>
+        <div class="lobby-card">
+            <h1>VANGUARD</h1>
+            <p>LOCATION: NORTHERN WOODS // DAYLIGHT</p>
+            <button class="btn-deploy" id="play-button">DEPLOY</button>
         </div>
-        <div class="hud-info">CONNECTION: <b>STABLE</b> | ENGINE: <b>V-GEN 3</b> | FPS: <b>60</b></div>
     </div>
 
     <script type="importmap">
