@@ -2,76 +2,72 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>VANGUARD | ULTRA REALISM</title>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@800&family=Rajdhani:wght@500&display=swap" rel="stylesheet">
+    <title>VANGUARD | DAYLIGHT OPS</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@800&family=Rajdhani:wght@600&display=swap" rel="stylesheet">
     <style>
-        body, html { margin: 0; padding: 0; overflow: hidden; background: #020205; font-family: 'Rajdhani', sans-serif; }
-        canvas { display: block; filter: contrast(1.1) saturate(1.1); }
+        body, html { margin: 0; padding: 0; overflow: hidden; background: #87CEEB; font-family: 'Rajdhani', sans-serif; }
+        canvas { display: block; }
         
-        /* Post-Processing Overlays */
-        #vignette { position: fixed; inset: 0; background: radial-gradient(circle, transparent 40%, rgba(0,0,0,0.9) 100%); pointer-events: none; z-index: 10; }
-        #grain { position: fixed; inset: 0; opacity: 0.05; background: url('https://upload.wikimedia.org/wikipedia/commons/7/76/Noise_1.jpg'); pointer-events: none; z-index: 11; }
+        #vignette { position: fixed; inset: 0; background: radial-gradient(circle, transparent 50%, rgba(0,0,0,0.4) 100%); pointer-events: none; z-index: 10; }
         
-        #hud { position: absolute; bottom: 40px; left: 40px; z-index: 20; color: #fff; }
-        .hp-container { width: 300px; height: 4px; background: rgba(255,255,255,0.1); margin-top: 10px; overflow: hidden; }
-        #hp-fill { width: 100%; height: 100%; background: #ff0000; transition: width 0.3s; box-shadow: 0 0 15px #ff0000; }
+        #hud { position: absolute; bottom: 40px; left: 40px; z-index: 20; color: #111; font-weight: bold; }
+        .hp-container { width: 300px; height: 6px; background: rgba(0,0,0,0.2); margin-top: 5px; }
+        #hp-fill { width: 100%; height: 100%; background: #2ecc71; transition: width 0.3s, background 0.3s; }
         
-        #warning { position: absolute; top: 15%; width: 100%; text-align: center; color: #ff0000; font-family: 'Orbitron'; font-size: 1.2rem; display: none; letter-spacing: 5px; animation: pulse 1s infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+        #warning { position: absolute; top: 15%; width: 100%; text-align: center; color: #e74c3c; font-family: 'Orbitron'; font-size: 1.5rem; display: none; text-shadow: 2px 2px 5px rgba(0,0,0,0.2); }
         
-        #crosshair { position: fixed; top: 50%; left: 50%; width: 4px; height: 4px; background: rgba(255,255,255,0.8); border-radius: 50%; transform: translate(-50%, -50%); z-index: 15; }
+        #crosshair { position: fixed; top: 50%; left: 50%; width: 16px; height: 16px; border: 2px solid rgba(0,0,0,0.5); transform: translate(-50%, -50%); border-radius: 50%; z-index: 15; }
     </style>
 </head>
 <body>
     <div id="vignette"></div>
-    <div id="grain"></div>
     <div id="crosshair"></div>
-    <div id="warning">CRITICAL HEALTH - PREDATOR ACTIVE</div>
+    <div id="warning">CRITICAL HEALTH - TARGET IS AGGRESSIVE</div>
     
     <div id="hud">
-        <div style="font-size: 0.7rem; letter-spacing: 3px; opacity: 0.6;">SYSTEM READY</div>
-        <div style="font-family: 'Orbitron'; font-size: 1.5rem;">VANGUARD OPS</div>
+        <div style="font-family: 'Orbitron'; font-size: 1.2rem; letter-spacing: 2px;">VANGUARD 2.6</div>
+        CONDITION: <span id="status">OPTIMAL</span>
         <div class="hp-container"><div id="hp-fill"></div></div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
     <script>
-        let scene, camera, renderer, gun, clock, flash;
+        let scene, camera, renderer, gun, clock;
         let isPlaying = false, health = 100;
-        let hunter = null, hunterModel = null;
+        let hunter = null;
         let bullets = [], enemyBullets = [], collidables = [];
         const keys = {};
 
         function init() {
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x020205);
-            scene.fog = new THREE.FogExp2(0x050508, 0.025); // Cinematic depth
+            scene.background = new THREE.Color(0x87CEEB); // Clear Blue Sky
+            scene.fog = new THREE.Fog(0x87CEEB, 1, 150);
 
             camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
             camera.rotation.order = 'YXZ';
 
-            renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+            renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.shadowMap.enabled = true;
             renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-            renderer.toneMapping = THREE.ACESFilmicToneMapping;
             document.body.appendChild(renderer.domElement);
 
             clock = new THREE.Clock();
 
-            // --- REALISTIC LIGHTING ---
-            const moonLight = new THREE.DirectionalLight(0x5566ff, 1.2);
-            moonLight.position.set(50, 100, 50);
-            moonLight.castShadow = true;
-            moonLight.shadow.mapSize.set(2048, 2048);
-            scene.add(moonLight);
+            // --- DAYLIGHT LIGHTING ---
+            const sun = new THREE.DirectionalLight(0xffffff, 1.8);
+            sun.position.set(50, 100, 20);
+            sun.castShadow = true;
+            sun.shadow.mapSize.set(2048, 2048);
+            scene.add(sun);
 
-            const hemiLight = new THREE.HemisphereLight(0x0a0a20, 0x050505, 0.5);
-            scene.add(hemiLight);
+            // Global Bounce Light
+            const ambient = new THREE.HemisphereLight(0xffffff, 0x4d5d3e, 0.7);
+            scene.add(ambient);
 
-            createAtmosphere();
-            spawnModularHunter(); 
-            createHyperGun();
+            createWorld();
+            spawnHumanHunter(); 
+            createGun();
 
             document.body.onclick = () => { if(!isPlaying) document.body.requestPointerLock(); };
             document.addEventListener('pointerlockchange', () => { isPlaying = document.pointerLockElement === document.body; });
@@ -79,9 +75,9 @@
             window.onkeyup = (e) => keys[e.code] = false;
             window.onmousemove = (e) => {
                 if(isPlaying) {
-                    camera.rotation.y -= e.movementX * 0.0015;
-                    camera.rotation.x -= e.movementY * 0.0015;
-                    camera.rotation.x = Math.max(-1.4, Math.min(1.4, camera.rotation.x));
+                    camera.rotation.y -= e.movementX * 0.0018;
+                    camera.rotation.x -= e.movementY * 0.0018;
+                    camera.rotation.x = Math.max(-1.5, Math.min(1.5, camera.rotation.x));
                 }
             };
             window.onmousedown = () => { if(isPlaying) shoot(); };
@@ -89,87 +85,85 @@
             animate();
         }
 
-        function createHyperGun() {
+        function createGun() {
             gun = new THREE.Group();
-            const mat = new THREE.MeshStandardMaterial({color: 0x050505, roughness: 0.1, metalness: 0.8});
-            
-            const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.12, 0.6), mat);
-            const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.5), mat);
+            const mat = new THREE.MeshStandardMaterial({color: 0x222222, roughness: 0.2});
+            const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.16, 0.6), mat);
+            const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.5), mat);
             barrel.rotation.x = Math.PI/2; barrel.position.z = -0.4;
-            
-            const scope = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.2), mat);
-            scope.rotation.x = Math.PI/2; scope.position.set(0, 0.08, -0.1);
-            
-            flash = new THREE.PointLight(0xffaa00, 0, 5);
-            flash.position.set(0, 0, -0.7);
-            
-            gun.add(receiver, barrel, scope, flash);
-            gun.position.set(0.3, -0.25, -0.5);
+            gun.add(receiver, barrel);
+            gun.position.set(0.35, -0.3, -0.6);
             camera.add(gun);
             scene.add(camera);
         }
 
-        function spawnModularHunter() {
-            const bot = new THREE.Group();
-            const mat = new THREE.MeshStandardMaterial({color: 0x111111, roughness: 0.5});
+        function spawnHumanHunter() {
+            const group = new THREE.Group();
+            const skinMat = new THREE.MeshStandardMaterial({color: 0x333333, roughness: 0.8});
             
-            const torso = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.8, 0.3), mat);
-            const head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 8), mat);
-            head.position.y = 0.6;
-            
-            // Red Visor (The "Eye")
-            const eye = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.05, 0.1), new THREE.MeshBasicMaterial({color: 0xff0000}));
-            eye.position.set(0, 0.6, -0.18);
-            
-            const armL = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.7), mat);
+            // Head
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.35), skinMat);
+            head.position.y = 0.8;
+            // Torso
+            const torso = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.9, 0.4), skinMat);
+            // Arms
+            const armL = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.7, 0.2), skinMat);
             armL.position.set(-0.4, 0.1, 0);
-            const armR = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.7), mat);
+            const armR = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.7, 0.2), skinMat);
             armR.position.set(0.4, 0.1, 0);
-            
-            bot.add(torso, head, eye, armL, armR);
-            bot.position.set(20, 1.4, -20);
-            bot.castShadow = true;
-            scene.add(bot);
-            hunter = { mesh: bot, hp: 200, lastShot: 0 };
+            // Legs
+            const legL = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.8, 0.25), skinMat);
+            legL.position.set(-0.2, -0.8, 0);
+            const legR = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.8, 0.25), skinMat);
+            legR.position.set(0.2, -0.8, 0);
+
+            group.add(head, torso, armL, armR, legL, legR);
+            group.position.set(15, 1.8, -30);
+            group.traverse(obj => { if(obj.isMesh) obj.castShadow = true; });
+            scene.add(group);
+            hunter = { mesh: group, hp: 100, lastShot: 0 };
         }
 
-        function createAtmosphere() {
-            // Ground with "Wet" Look
-            const floorGeo = new THREE.PlaneGeometry(1000, 1000);
-            const floorMat = new THREE.MeshStandardMaterial({color: 0x050505, roughness: 0.2, metalness: 0.1});
-            const floor = new THREE.Mesh(floorGeo, floorMat);
+        function createWorld() {
+            // High-detail grass floor
+            const floor = new THREE.Mesh(new THREE.PlaneGeometry(1000, 1000), new THREE.MeshStandardMaterial({color: 0x4d5d3e, roughness: 1}));
             floor.rotation.x = -Math.PI/2;
             floor.receiveShadow = true;
             scene.add(floor);
 
-            // Realistic Mountains
-            for(let i=0; i<12; i++) {
-                const mt = new THREE.Mesh(new THREE.ConeGeometry(50, 120, 6), new THREE.MeshStandardMaterial({color: 0x050505}));
-                const angle = (i/12) * Math.PI*2;
-                mt.position.set(Math.cos(angle)*200, 40, Math.sin(angle)*200);
-                scene.add(mt);
-            }
+            // House with proper Slanted Roof
+            const house = new THREE.Group();
+            const wallMat = new THREE.MeshStandardMaterial({color: 0xcccccc});
+            const buildWall = (w, h, d, x, y, z) => {
+                const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wallMat);
+                m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true;
+                house.add(m); collidables.push(m);
+            };
+            buildWall(10, 6, 0.5, 0, 3, -5); buildWall(0.5, 6, 10, -5, 3, 0); buildWall(0.5, 6, 10, 5, 3, 0);
+            // Slanted Roof (Modular Geometry)
+            const roof = new THREE.Mesh(new THREE.ConeGeometry(8, 5, 4), new THREE.MeshStandardMaterial({color: 0x442222}));
+            roof.position.y = 8.5; roof.rotation.y = Math.PI/4;
+            house.add(roof); scene.add(house); house.position.set(0, 0, -25);
 
-            // High-Detail Trees (Modular)
+            // Trees (Trunk + Canopy)
             for(let i=0; i<40; i++) {
                 const x = Math.random()*150-75, z = Math.random()*150-75;
-                const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 12), new THREE.MeshStandardMaterial({color: 0x020202}));
-                trunk.position.set(x, 6, z);
-                scene.add(trunk);
-                collidables.push(trunk);
+                if(Math.abs(x)<12 && Math.abs(z+25)<12) continue;
+                const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.5, 10), new THREE.MeshStandardMaterial({color: 0x3d2b1f}));
+                trunk.position.set(x, 5, z); trunk.castShadow = true;
+                const leaves = new THREE.Mesh(new THREE.SphereGeometry(3.5, 8, 8), new THREE.MeshStandardMaterial({color: 0x1e3d1e}));
+                leaves.position.set(x, 10, z);
+                scene.add(trunk, leaves); collidables.push(trunk);
             }
         }
 
         function shoot() {
-            flash.intensity = 10;
-            setTimeout(() => flash.intensity = 0, 50);
-            
-            const b = new THREE.Mesh(new THREE.SphereGeometry(0.05), new THREE.MeshBasicMaterial({color: 0xffffff}));
+            const b = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({color: 0x000000}));
             b.position.copy(camera.position);
             const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
             bullets.push({mesh: b, dir: dir});
             scene.add(b);
-            gun.position.z += 0.05; // Recoil
+            gun.position.z += 0.1; // Recoil
         }
 
         function animate() {
@@ -178,37 +172,38 @@
             const delta = clock.getDelta();
             const time = Date.now();
 
-            // Smooth Movement
+            // Movement
             const oldPos = camera.position.clone();
-            const speed = keys['ShiftLeft'] ? 0.2 : 0.1;
+            const speed = keys['ShiftLeft'] ? 0.22 : 0.12;
             if(keys['KeyW']) camera.translateZ(-speed);
             if(keys['KeyS']) camera.translateZ(speed);
             if(keys['KeyA']) camera.translateX(-speed);
             if(keys['KeyD']) camera.translateX(speed);
-            collidables.forEach(c => { if(camera.position.distanceTo(c.position) < 2) camera.position.copy(oldPos); });
-            camera.position.y = 1.7;
+            collidables.forEach(c => { if(camera.position.distanceTo(c.position) < 2.5) camera.position.copy(oldPos); });
+            camera.position.y = 1.8;
 
-            // --- HUNTER AI (THE CHASE) ---
+            // HUNTER AI
             if(hunter) {
                 const dist = hunter.mesh.position.distanceTo(camera.position);
-                const isChasing = health < 40;
+                const isChasing = health < 45;
                 
                 document.getElementById('warning').style.display = isChasing ? 'block' : 'none';
+                document.getElementById('status').innerText = isChasing ? "CRITICAL" : "OPTIMAL";
+                document.getElementById('hp-fill').style.background = isChasing ? "#e74c3c" : "#2ecc71";
                 
-                // Motion
-                const moveSpeed = isChasing ? 0.08 : 0.02;
-                const dir = new THREE.Vector3().subVectors(camera.position, hunter.mesh.position).normalize();
-                hunter.mesh.position.addScaledVector(dir, moveSpeed);
-                hunter.mesh.lookAt(camera.position.x, 1.4, camera.position.z);
+                // Movement: Chases faster when health is low
+                const moveSpeed = isChasing ? 0.09 : 0.03;
+                const chaseDir = new THREE.Vector3().subVectors(camera.position, hunter.mesh.position).normalize();
+                hunter.mesh.position.addScaledVector(chaseDir, moveSpeed);
+                hunter.mesh.lookAt(camera.position.x, 1.8, camera.position.z);
                 
                 // Combat
-                if(dist < 40 && time - hunter.lastShot > 1200) {
-                    const eb = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({color: 0xff0000}));
+                if(dist < 50 && time - hunter.lastShot > 1800) {
+                    const eb = new THREE.Mesh(new THREE.SphereGeometry(0.2), new THREE.MeshBasicMaterial({color: 0x000000}));
                     eb.position.copy(hunter.mesh.position);
                     const eDir = new THREE.Vector3().subVectors(camera.position, hunter.mesh.position).normalize();
                     enemyBullets.push({mesh: eb, dir: eDir});
-                    scene.add(eb);
-                    hunter.lastShot = time;
+                    scene.add(eb); hunter.lastShot = time;
                 }
             }
 
@@ -216,18 +211,15 @@
             bullets.forEach((b, i) => {
                 b.mesh.position.addScaledVector(b.dir, 3);
                 if(hunter && b.mesh.position.distanceTo(hunter.mesh.position) < 2) {
-                    hunter.hp -= 20;
+                    hunter.hp -= 25;
                     scene.remove(b.mesh); bullets.splice(i, 1);
-                    if(hunter.hp <= 0) {
-                        scene.remove(hunter.mesh); hunter = null;
-                        setTimeout(spawnModularHunter, 5000);
-                    }
+                    if(hunter.hp <= 0) { scene.remove(hunter.mesh); hunter = null; setTimeout(spawnHumanHunter, 4000); }
                 }
             });
 
             enemyBullets.forEach((eb, i) => {
-                eb.mesh.position.addScaledVector(eb.dir, 0.7);
-                if(eb.mesh.position.distanceTo(camera.position) < 1.2) {
+                eb.mesh.position.addScaledVector(eb.dir, 0.8);
+                if(eb.mesh.position.distanceTo(camera.position) < 1.5) {
                     health -= 10;
                     document.getElementById('hp-fill').style.width = health + "%";
                     scene.remove(eb.mesh); enemyBullets.splice(i, 1);
@@ -235,7 +227,7 @@
                 }
             });
 
-            gun.position.z += (-0.5 - gun.position.z) * 0.1; // Smooth recoil return
+            gun.position.z += (-0.6 - gun.position.z) * 0.1; 
             renderer.render(scene, camera);
         }
         init();
