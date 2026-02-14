@@ -2,216 +2,51 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Frontline | Delta Realism</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VANGUARD | AAA FOREST OPS</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Rajdhani:wght@500&display=swap" rel="stylesheet">
     <style>
-        body { margin: 0; overflow: hidden; background: #cce0ff; font-family: 'Inter', sans-serif; }
-        #ui { position: absolute; inset: 0; pointer-events: none; }
+        body { margin: 0; background: #020202; color: #fff; font-family: 'Rajdhani', sans-serif; overflow: hidden; }
+        canvas { display: block; position: fixed; top: 0; left: 0; z-index: 1; }
         
-        /* Tactical HUD */
-        #comms {
-            position: absolute; top: 30px; left: 30px; background: rgba(0,0,0,0.8);
-            padding: 20px; border-left: 4px solid #fff; color: white; width: 320px;
-            font-size: 13px; backdrop-filter: blur(15px); border-radius: 0 4px 4px 0;
+        #ui-layer { 
+            position: relative; z-index: 10; height: 100vh; 
+            background: linear-gradient(90deg, rgba(0,0,0,0.7) 0%, transparent 60%);
+            display: flex; flex-direction: column; justify-content: center; padding-left: 80px;
         }
-        #squad-list { position: absolute; bottom: 40px; right: 40px; color: white; text-align: right; }
-        .member { font-size: 12px; letter-spacing: 2px; margin-top: 5px; text-shadow: 2px 2px 4px #000; }
-        
-        #crosshair { position: absolute; top: 50%; left: 50%; width: 4px; height: 4px; background: white; border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 10px #fff; }
 
-        #overlay { position: absolute; inset: 0; background: #fff; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; transition: opacity 0.8s; }
-        button { padding: 25px 80px; background: #000; color: #fff; border: none; font-weight: 900; cursor: pointer; letter-spacing: 8px; font-size: 16px; }
+        h1 { font-family: 'Orbitron'; font-size: 5rem; margin: 0; letter-spacing: 15px; color: #00ffcc; text-shadow: 0 0 30px rgba(0,255,204,0.4); }
+        p { letter-spacing: 5px; color: #aaa; margin-bottom: 50px; }
+
+        .menu { display: flex; flex-direction: column; gap: 15px; }
+        .btn {
+            background: rgba(255,255,255,0.05); border: 1px solid rgba(0,255,204,0.3);
+            color: white; padding: 18px 50px; width: 280px; font-size: 1.4rem; cursor: pointer;
+            transition: all 0.3s; text-transform: uppercase; letter-spacing: 2px;
+            clip-path: polygon(0% 0%, 90% 0%, 100% 30%, 100% 100%, 10% 100%, 0% 70%);
+        }
+        .btn:hover { background: #00ffcc; color: #000; box-shadow: 0 0 20px #00ffcc; transform: scale(1.05); }
+
+        .hud-info { position: absolute; bottom: 30px; left: 80px; font-size: 0.9rem; color: #444; }
+        b { color: #00ffcc; }
     </style>
 </head>
 <body>
-
-    <div id="overlay">
-        <h1 style="font-size: 6vw; margin: 0; letter-spacing: -5px; color: #000;">DELTA</h1>
-        <p style="color: #666; margin-bottom: 40px; letter-spacing: 4px;">PHYSICS-LOCKED TACTICAL SIMULATION</p>
-        <button onclick="controls.lock()">ENGAGE SQUAD</button>
-    </div>
-
-    <div id="ui">
-        <div id="comms"><strong>OPERATOR:</strong> "Gravity lock engaged. Squad moving to waypoint Alpha. Visual markers active."</div>
-        <div id="squad-list">
-            <div class="member">LEADER [YOU]</div>
-            <div class="member" style="color: #aaa;">GHOST [AI FRIEND]</div>
+    <div id="ui-layer">
+        <h1>VANGUARD</h1>
+        <p>SECTOR: DEEP FOREST // 04:00 HRS</p>
+        <div class="menu">
+            <button class="btn">Deploy to Forest</button>
+            <button class="btn">Armory</button>
+            <button class="btn">Options</button>
+            <button class="btn">Exit</button>
         </div>
-        <div id="crosshair"></div>
+        <div class="hud-info">CONNECTION: <b>STABLE</b> | ENGINE: <b>V-GEN 3</b> | FPS: <b>60</b></div>
     </div>
 
     <script type="importmap">
-        {
-            "imports": {
-                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-            }
-        }
+        { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
     </script>
-
-    <script type="module">
-        import * as THREE from 'three';
-        import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
-
-        // --- CORE ENGINE ---
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x87ceeb);
-        scene.fog = new THREE.FogExp2(0x87ceeb, 0.015);
-
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        document.body.appendChild(renderer.domElement);
-
-        window.controls = new PointerLockControls(camera, document.body);
-
-        // --- REALISTIC LIGHTING ---
-        scene.add(new THREE.AmbientLight(0xffffff, 0.7));
-        const sun = new THREE.DirectionalLight(0xffffff, 2.8);
-        sun.position.set(50, 100, 50);
-        sun.castShadow = true;
-        sun.shadow.mapSize.set(2048, 2048);
-        scene.add(sun);
-
-        // --- CHARACTER ARCHITECT (Realistic Proportion) ---
-        function createRealisticSoldier(mainColor, skinColor) {
-            const group = new THREE.Group();
-            const fabric = new THREE.MeshStandardMaterial({ color: mainColor, roughness: 0.8 });
-            const skin = new THREE.MeshStandardMaterial({ color: skinColor });
-            const tactical = new THREE.MeshStandardMaterial({ color: 0x111111 });
-
-            // Torso & Vest
-            const torso = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.7, 0.3), fabric);
-            torso.position.y = 1.15;
-            const vest = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.4, 0.35), tactical);
-            vest.position.y = 1.2;
-            
-            // Head & Helmet
-            const head = new THREE.Mesh(new THREE.SphereGeometry(0.18, 16, 16), skin);
-            head.position.y = 1.65;
-            const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2), tactical);
-            helmet.position.y = 1.68;
-
-            // Limbs
-            const legL = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.08, 0.8), fabric);
-            legL.position.set(0.15, 0.4, 0);
-            const legR = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.08, 0.8), fabric);
-            legR.position.set(-0.15, 0.4, 0);
-
-            const armL = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.7), fabric);
-            armL.position.set(0.35, 1.2, 0);
-            const armR = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.7), fabric);
-            armR.position.set(-0.35, 1.2, 0);
-
-            // Weapon
-            const weapon = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.12, 0.9), tactical);
-            weapon.position.set(0.3, 1.2, 0.4);
-
-            group.add(torso, vest, head, helmet, legL, legR, armL, armR, weapon);
-            group.limbs = { legL, legR, armL, armR };
-            group.traverse(n => { if(n.isMesh) n.castShadow = n.receiveShadow = true; });
-            return group;
-        }
-
-        const playerModel = createRealisticSoldier(0x2d3436, 0xffdbac);
-        const ghostFriend = createRealisticSoldier(0x34495e, 0xffdbac);
-        scene.add(playerModel, ghostFriend);
-
-        const enemies = [];
-        for(let i=0; i<10; i++) {
-            const e = createRealisticSoldier(0x1a1a1a, 0xff0000); // Red skin for visibility
-            e.position.set((Math.random()-0.5)*150, 0, (Math.random()-0.5)*150);
-            scene.add(e);
-            enemies.push(e);
-        }
-
-        const ground = new THREE.Mesh(new THREE.PlaneGeometry(1000, 1000), new THREE.MeshStandardMaterial({color: 0x4a6741}));
-        ground.rotation.x = -Math.PI/2; ground.receiveShadow = true;
-        scene.add(ground);
-
-        // --- RIGID PHYSICS ENGINE ---
-        let playerPos = new THREE.Vector3(0, 0, 0);
-        let verticalVelocity = 0;
-        let isGrounded = true;
-        const keys = {};
-
-        document.addEventListener('keydown', (e) => keys[e.code] = true);
-        document.addEventListener('keyup', (e) => keys[e.code] = false);
-
-        function animate() {
-            requestAnimationFrame(animate);
-            const time = Date.now() * 0.01;
-
-            if(controls.isLocked) {
-                // 1. Gravity Logic (Clamped to prevent fly error)
-                verticalVelocity -= 0.35; 
-                playerPos.y += verticalVelocity * 0.016;
-
-                const minHeight = keys['KeyC'] ? 0.8 : 1.7;
-                if(playerPos.y <= minHeight) {
-                    playerPos.y = minHeight;
-                    verticalVelocity = 0;
-                    isGrounded = true;
-                }
-
-                if(keys['Space'] && isGrounded) {
-                    verticalVelocity = 8;
-                    isGrounded = false;
-                }
-
-                // 2. Lateral Movement
-                let speed = (keys['ShiftLeft'] ? 0.35 : 0.15) * (keys['KeyC'] ? 0.5 : 1);
-                const moveDir = new THREE.Vector3();
-                if(keys['KeyW']) moveDir.z -= 1; if(keys['KeyS']) moveDir.z += 1;
-                if(keys['KeyA']) moveDir.x -= 1; if(keys['KeyD']) moveDir.x += 1;
-                moveDir.normalize().applyQuaternion(camera.quaternion);
-                
-                playerPos.x += moveDir.x * speed;
-                playerPos.z += moveDir.z * speed;
-
-                // 3. Sync Models & Camera
-                playerModel.position.copy(playerPos);
-                playerModel.position.y -= (keys['KeyC'] ? 0.8 : 1.6);
-                playerModel.rotation.y = camera.rotation.y;
-
-                // Locked Camera Attach (Third Person)
-                const camOffset = new THREE.Vector3(0.9, 0.4, 3.8).applyQuaternion(camera.quaternion);
-                camera.position.copy(playerPos).add(camOffset);
-
-                // 4. Friend AI (Ghost)
-                const followPos = playerPos.clone().add(new THREE.Vector3(2, 0, 1.5).applyQuaternion(playerModel.quaternion));
-                ghostFriend.position.lerp(followPos, 0.06);
-                ghostFriend.lookAt(playerPos.x + 5, 0, playerPos.z + 5);
-
-                // 5. Procedural Animation
-                const isMoving = moveDir.length() > 0;
-                [playerModel, ghostFriend].forEach(m => {
-                    if(isMoving || m === ghostFriend) {
-                        const walkWave = Math.sin(time * 1.2);
-                        m.limbs.legL.rotation.x = walkWave * 0.6;
-                        m.limbs.legR.rotation.x = -walkWave * 0.6;
-                    }
-                });
-
-                // Enemy High-Vis Tracking
-                enemies.forEach(en => {
-                    const d = en.position.distanceTo(playerPos);
-                    if(d < 60) {
-                        en.lookAt(playerPos.x, 0, playerPos.z);
-                        en.translateZ(0.08);
-                        en.limbs.legL.rotation.x = Math.sin(time) * 0.6;
-                        en.limbs.legR.rotation.x = -Math.sin(time) * 0.6;
-                    }
-                });
-            }
-            renderer.render(scene, camera);
-        }
-        animate();
-
-        controls.addEventListener('lock', () => document.getElementById('overlay').style.opacity='0');
-        controls.addEventListener('unlock', () => document.getElementById('overlay').style.opacity='1');
-    </script>
+    <script type="module" src="main.js"></script>
 </body>
 </html>
