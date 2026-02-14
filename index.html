@@ -3,43 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VANGUARD | DAYLIGHT OPS</title>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Rajdhani:wght@600&display=swap" rel="stylesheet">
+    <title>VANGUARD | AAA DAYLIGHT</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap" rel="stylesheet">
     <style>
-        body { margin: 0; background: #87CEEB; color: #fff; font-family: 'Rajdhani', sans-serif; overflow: hidden; }
+        body { margin: 0; background: #87CEEB; color: #fff; font-family: sans-serif; overflow: hidden; }
         canvas { display: block; position: fixed; top: 0; left: 0; z-index: 1; }
         
         #ui-layer { 
-            position: absolute; z-index: 10; width: 100%; height: 100%; 
-            background: rgba(0,0,0,0.2);
+            position: absolute; z-index: 100; width: 100%; height: 100%; 
+            background: rgba(0,0,0,0.5);
             display: flex; flex-direction: column; justify-content: center; align-items: center;
-            transition: opacity 0.5s;
         }
 
         .lobby-card {
-            background: rgba(0, 0, 0, 0.7);
-            padding: 50px;
-            border-top: 4px solid #00ffcc;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 60px;
+            border: 2px solid #00ffcc;
             text-align: center;
-            backdrop-filter: blur(10px);
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
         }
 
-        h1 { font-family: 'Orbitron'; font-size: 4rem; margin: 0; letter-spacing: 10px; color: #fff; }
-        p { letter-spacing: 3px; color: #00ffcc; margin-bottom: 30px; font-size: 1.2rem; }
+        h1 { font-family: 'Orbitron'; font-size: 3.5rem; margin: 0; color: #fff; }
 
         .btn-deploy {
             background: #00ffcc; border: none; color: #000;
-            padding: 20px 80px; font-size: 1.8rem; font-weight: bold; cursor: pointer;
-            text-transform: uppercase; transition: 0.3s;
-            clip-path: polygon(10% 0, 100% 0, 90% 100%, 0 100%);
+            padding: 20px 60px; font-size: 1.5rem; font-weight: bold; 
+            cursor: pointer; margin-top: 30px;
+            text-transform: uppercase;
         }
-        .btn-deploy:hover { background: #fff; transform: scale(1.1); box-shadow: 0 0 30px #00ffcc; }
+        .btn-deploy:hover { background: #fff; }
 
         #crosshair {
-            position: fixed; top: 50%; left: 50%; width: 20px; height: 20px;
-            border: 2px solid rgba(0, 255, 204, 0.5); border-radius: 50%;
-            transform: translate(-50%, -50%); z-index: 5; display: none;
-            pointer-events: none;
+            position: fixed; top: 50%; left: 50%; width: 10px; height: 10px;
+            background: #00ffcc; border-radius: 50%;
+            transform: translate(-50%, -50%); z-index: 50; display: none;
         }
     </style>
 </head>
@@ -49,14 +46,12 @@
     <div id="ui-layer">
         <div class="lobby-card">
             <h1>VANGUARD</h1>
-            <p>LOCATION: NORTHERN WOODS // DAYLIGHT</p>
-            <button class="btn-deploy" id="play-button">DEPLOY</button>
+            <p style="color: #00ffcc;">SYSTEM READY // DAYLIGHT OPS</p>
+            <button class="btn-deploy" id="play-button">DEPLOY NOW</button>
         </div>
     </div>
 
-    <script type="importmap">
-        { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
-    </script>
-    <script type="module" src="main.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
+    <script src="main.js"></script>
 </body>
 </html>
