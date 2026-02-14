@@ -3,31 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VANGUARD | COLLISION & MULTI-AI</title>
+    <title>VANGUARD: WARZONE OPS</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Rajdhani:wght@600&display=swap" rel="stylesheet">
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #87CEEB; font-family: 'Rajdhani', sans-serif; }
         canvas { display: block; position: fixed; top: 0; left: 0; z-index: 1; }
-        #ui-layer { position: absolute; z-index: 100; width: 100%; height: 100%; background: rgba(0,0,0,0.4); display: flex; flex-direction: column; justify-content: center; align-items: center; }
-        .lobby-card { background: rgba(0, 0, 0, 0.9); padding: 50px; border-bottom: 5px solid #00ffcc; text-align: center; box-shadow: 0 0 50px #000; }
-        h1 { font-family: 'Orbitron'; font-size: 3.5rem; margin: 0; color: #fff; letter-spacing: 12px; }
-        .btn-deploy { background: #00ffcc; border: none; color: #000; padding: 15px 60px; font-size: 1.5rem; font-weight: bold; cursor: pointer; text-transform: uppercase; margin-top: 20px; }
-        #game-hud { position: absolute; top: 20px; left: 20px; z-index: 50; display: none; color: #00ffcc; font-size: 1.2rem; }
-        #crosshair { position: fixed; top: 50%; left: 50%; width: 14px; height: 14px; border: 2px solid #00ffcc; border-radius: 50%; transform: translate(-50%, -50%); z-index: 50; display: none; pointer-events: none; }
+        
+        /* UI & HUD */
+        #ui-layer { position: absolute; z-index: 100; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; }
+        .lobby-card { background: #000; padding: 50px; border: 2px solid #ff0000; text-align: center; box-shadow: 0 0 50px #ff0000; }
+        h1 { font-family: 'Orbitron'; font-size: 3rem; color: #fff; margin: 0; }
+        .btn-deploy { background: #ff0000; border: none; color: #fff; padding: 15px 50px; font-size: 1.5rem; cursor: pointer; margin-top: 20px; font-family: 'Orbitron'; }
+        
+        #hud { position: absolute; bottom: 30px; left: 30px; z-index: 50; display: none; color: #fff; }
+        .hp-bar-bg { width: 300px; height: 20px; background: rgba(255,255,255,0.2); border: 2px solid #fff; }
+        #hp-fill { width: 100%; height: 100%; background: #ff0000; transition: width 0.2s; }
+        
+        #damage-flash { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,0,0,0.3); display: none; pointer-events: none; z-index: 99; }
+        #crosshair { position: fixed; top: 50%; left: 50%; width: 20px; height: 20px; border: 2px solid #fff; border-radius: 50%; transform: translate(-50%, -50%); z-index: 50; display: none; pointer-events: none; }
     </style>
 </head>
 <body>
 
+    <div id="damage-flash"></div>
     <div id="crosshair"></div>
-    <div id="game-hud">
-        STATUS: <span style="color:white">COMBAT READY</span> | 
-        THREATS: <span id="enemy-count">0</span>
+    
+    <div id="hud">
+        HEALTH
+        <div class="hp-bar-bg"><div id="hp-fill"></div></div>
+        <div id="status">STATUS: COMBAT ZONE</div>
     </div>
 
     <div id="ui-layer">
         <div class="lobby-card">
-            <h1>VANGUARD</h1>
-            <p style="color: #00ffcc;">PHYSICS ENABLED // MULTI-ENEMY SQUAD</p>
+            <h1>WARZONE</h1>
+            <p style="color: #ff0000;">ENEMIES ARE ARMED AND DANGEROUS</p>
             <button class="btn-deploy" id="play-button">DEPLOY</button>
         </div>
     </div>
@@ -35,16 +45,16 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
 
     <script>
-        let scene, camera, renderer, clock, gun;
-        let isPlaying = false;
-        let player = { height: 1.7, velocityY: 0, isJumping: false, radius: 0.6 };
-        let bullets = [], enemies = [], collidables = [];
+        let scene, camera, renderer, gun, clock;
+        let isPlaying = false, health = 100;
+        let player = { height: 1.8, velocityY: 0, isJumping: false };
+        let bullets = [], enemyBullets = [], enemies = [], collidables = [];
         const keys = {};
 
         function init() {
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0xa3d1ff);
-            scene.fog = new THREE.Fog(0xa3d1ff, 10, 150);
+            scene.background = new THREE.Color(0x90caef);
+            scene.fog = new THREE.Fog(0x90caef, 20, 200);
 
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             camera.rotation.order = 'YXZ';
@@ -56,20 +66,33 @@
 
             clock = new THREE.Clock();
 
-            const sun = new THREE.DirectionalLight(0xffffff, 1.8);
+            // Sunlight
+            const sun = new THREE.DirectionalLight(0xffffff, 1.5);
             sun.position.set(50, 100, 50);
             sun.castShadow = true;
             scene.add(sun);
             scene.add(new THREE.AmbientLight(0xffffff, 0.4));
 
-            createWorld();
+            createWarzone();
             createGun();
 
             document.getElementById('play-button').onclick = () => document.body.requestPointerLock();
-            document.addEventListener('pointerlockchange', lockChange);
+            document.addEventListener('pointerlockchange', () => {
+                isPlaying = document.pointerLockElement === document.body;
+                document.getElementById('ui-layer').style.display = isPlaying ? 'none' : 'flex';
+                document.getElementById('hud').style.display = isPlaying ? 'block' : 'none';
+                document.getElementById('crosshair').style.display = isPlaying ? 'block' : 'none';
+            });
+
             window.addEventListener('keydown', (e) => keys[e.code] = true);
             window.addEventListener('keyup', (e) => keys[e.code] = false);
-            window.addEventListener('mousemove', onMouseMove);
+            window.addEventListener('mousemove', (e) => {
+                if(isPlaying) {
+                    camera.rotation.y -= e.movementX * 0.002;
+                    camera.rotation.x -= e.movementY * 0.002;
+                    camera.rotation.x = Math.max(-1.5, Math.min(1.5, camera.rotation.x));
+                }
+            });
             window.addEventListener('mousedown', () => { if(isPlaying) shoot(); });
 
             animate();
@@ -77,155 +100,122 @@
 
         function createGun() {
             gun = new THREE.Group();
-            const body = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.15, 0.7), new THREE.MeshStandardMaterial({color: 0x222222}));
-            const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.5), new THREE.MeshStandardMaterial({color: 0x000000}));
-            barrel.rotation.x = Math.PI/2; barrel.position.z = -0.4;
+            const body = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.15, 0.8), new THREE.MeshStandardMaterial({color: 0x111111}));
+            const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.6), new THREE.MeshStandardMaterial({color: 0x000000}));
+            barrel.rotation.x = Math.PI/2; barrel.position.z = -0.5;
             gun.add(body, barrel);
             gun.position.set(0.3, -0.3, -0.6);
             camera.add(gun);
             scene.add(camera);
         }
 
-        function createWorld() {
-            // Floor
-            const floor = new THREE.Mesh(new THREE.PlaneGeometry(1000, 1000), new THREE.MeshStandardMaterial({ color: 0x3d662a }));
-            floor.rotation.x = -Math.PI / 2;
-            floor.receiveShadow = true;
-            scene.add(floor);
+        function createWarzone() {
+            // Ground
+            const ground = new THREE.Mesh(new THREE.PlaneGeometry(1000, 1000), new THREE.MeshStandardMaterial({color: 0x556644}));
+            ground.rotation.x = -Math.PI/2; ground.receiveShadow = true;
+            scene.add(ground);
 
-            // Realistic House with Walls (Collidable)
-            const house = new THREE.Group();
-            const wallMat = new THREE.MeshStandardMaterial({color: 0x888888});
-            
-            const createWall = (w, h, d, x, y, z) => {
-                const wall = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wallMat);
-                wall.position.set(x, y, z);
-                house.add(wall);
-                collidables.push(wall);
-            };
-
-            createWall(10, 5, 0.5, 0, 2.5, -5); // Back
-            createWall(0.5, 5, 10, -5, 2.5, 0);  // Left
-            createWall(0.5, 5, 10, 5, 2.5, 0);   // Right
-            createWall(4, 5, 0.5, -3, 2.5, 5);   // Front Left
-            createWall(4, 5, 0.5, 3, 2.5, 5);    // Front Right
-            
-            house.position.set(0, 0, -20);
-            scene.add(house);
-
-            // Trees (Collidable)
-            for(let i=0; i<60; i++) {
-                const x = Math.random()*160-80, z = Math.random()*160-80;
-                if(Math.abs(x) < 15 && Math.abs(z+20) < 15) continue;
-                
-                const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 8), new THREE.MeshStandardMaterial({color: 0x4b3621}));
-                trunk.position.set(x, 4, z);
-                scene.add(trunk);
-                collidables.push(trunk);
-
-                const leaves = new THREE.Mesh(new THREE.ConeGeometry(3, 8, 8), new THREE.MeshStandardMaterial({color: 0x1b3022}));
-                leaves.position.set(x, 10, z);
-                scene.add(leaves);
+            // Mountains
+            for(let i=0; i<8; i++) {
+                const mt = new THREE.Mesh(new THREE.ConeGeometry(40, 60, 4), new THREE.MeshStandardMaterial({color: 0x444444}));
+                const angle = (i / 8) * Math.PI * 2;
+                mt.position.set(Math.cos(angle)*150, 20, Math.sin(angle)*150);
+                scene.add(mt);
+                collidables.push(mt);
             }
 
-            // 3 Different Enemy Models
-            const types = [
-                { color: 0xff0000, size: [0.8, 1.8, 0.8], name: "Grunt" },
-                { color: 0xffff00, size: [0.4, 2.2, 0.4], name: "Scout" },
-                { color: 0xaa00ff, size: [1.5, 2.5, 1.5], name: "Heavy" }
-            ];
+            // Wooden Boxes (Warzone Cover)
+            const boxGeo = new THREE.BoxGeometry(2, 2, 2);
+            const boxMat = new THREE.MeshStandardMaterial({color: 0x8B4513});
+            for(let i=0; i<40; i++) {
+                const box = new THREE.Mesh(boxGeo, boxMat);
+                box.position.set(Math.random()*100-50, 1, Math.random()*100-50);
+                scene.add(box);
+                collidables.push(box);
+            }
 
-            for(let i=0; i<12; i++) {
-                const t = types[i % 3];
-                const en = new THREE.Mesh(new THREE.BoxGeometry(...t.size), new THREE.MeshStandardMaterial({color: t.color}));
-                en.position.set(Math.random()*80-40, t.size[1]/2, Math.random()*80-40);
+            // Enemies (Shooting AI)
+            for(let i=0; i<10; i++) {
+                const en = new THREE.Mesh(new THREE.CapsuleGeometry(0.5, 1.5), new THREE.MeshStandardMaterial({color: 0xff0000}));
+                en.position.set(Math.random()*80-40, 1.25, Math.random()*80-40);
                 scene.add(en);
-                enemies.push({mesh: en, type: t.name});
+                enemies.push({mesh: en, lastShot: 0});
             }
-            document.getElementById('enemy-count').innerText = enemies.length;
-        }
-
-        function lockChange() {
-            const locked = document.pointerLockElement === document.body;
-            isPlaying = locked;
-            document.getElementById('ui-layer').style.display = locked ? 'none' : 'flex';
-            document.getElementById('game-hud').style.display = locked ? 'block' : 'none';
-            document.getElementById('crosshair').style.display = locked ? 'block' : 'none';
-        }
-
-        function onMouseMove(e) {
-            if (isPlaying) {
-                camera.rotation.y -= e.movementX * 0.002;
-                camera.rotation.x -= e.movementY * 0.002;
-                camera.rotation.x = Math.max(-1.5, Math.min(1.5, camera.rotation.x));
-            }
-        }
-
-        function checkCollision(newPos) {
-            for (let obj of collidables) {
-                const box = new THREE.Box3().setFromObject(obj);
-                // Expand box slightly for player thickness
-                box.expandByScalar(player.radius);
-                if (box.containsPoint(newPos)) return true;
-            }
-            return false;
         }
 
         function shoot() {
-            const b = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({color: 0xffff00}));
+            const b = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({color: 0x00ffcc}));
             b.position.copy(camera.position);
             const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
-            bullets.push({ mesh: b, dir: dir });
+            bullets.push({mesh: b, dir: dir});
             scene.add(b);
-            gun.position.z += 0.1; // Recoil
+            gun.position.z += 0.1;
+        }
+
+        function takeDamage(amt) {
+            health -= amt;
+            document.getElementById('hp-fill').style.width = health + "%";
+            document.getElementById('damage-flash').style.display = 'block';
+            setTimeout(() => document.getElementById('damage-flash').style.display = 'none', 100);
+            if(health <= 0) location.reload();
         }
 
         function animate() {
             requestAnimationFrame(animate);
-            if (isPlaying) {
-                const delta = clock.getDelta();
-                const speed = keys['ShiftLeft'] ? 0.25 : 0.12;
-                
-                // Movement with Barrier Check
-                let nextPos = camera.position.clone();
-                const oldPos = camera.position.clone();
+            if(!isPlaying) return;
 
-                if(keys['KeyW']) camera.translateZ(-speed);
-                if(keys['KeyS']) camera.translateZ(speed);
-                if(keys['KeyA']) camera.translateX(-speed);
-                if(keys['KeyD']) camera.translateX(speed);
+            const time = Date.now();
+            const speed = 0.15;
+            const oldPos = camera.position.clone();
 
-                // If new position hits a wall, go back to old position
-                if(checkCollision(camera.position)) {
-                    camera.position.copy(oldPos);
-                }
-
-                // Head Bobbing
-                if(keys['KeyW'] || keys['KeyS'] || keys['KeyA'] || keys['KeyD']) {
-                    const bob = Math.sin(Date.now() * 0.01) * 0.05;
-                    camera.position.y = player.height + bob;
-                }
-
-                // Gravity/Jump
-                if(keys['Space'] && !player.isJumping) { player.velocityY = 0.2; player.isJumping = true; }
-                if(player.isJumping) {
-                    camera.position.y += player.velocityY; player.velocityY -= 0.01;
-                    if(camera.position.y <= player.height) { camera.position.y = player.height; player.isJumping = false; }
-                }
-
-                // Gun Smoothing
-                gun.position.z += (-0.6 - gun.position.z) * 0.1;
-
-                bullets.forEach((b, i) => {
-                    b.mesh.position.add(b.dir.clone().multiplyScalar(2));
-                    enemies.forEach((en, ei) => {
-                        if(b.mesh.position.distanceTo(en.mesh.position) < 2) {
-                            scene.remove(en.mesh); enemies.splice(ei, 1);
-                            document.getElementById('enemy-count').innerText = enemies.length;
-                        }
-                    });
-                });
+            if(keys['KeyW']) camera.translateZ(-speed);
+            if(keys['KeyS']) camera.translateZ(speed);
+            if(keys['KeyA']) camera.translateX(-speed);
+            if(keys['KeyD']) camera.translateX(speed);
+            
+            // Collision Detection
+            for(let obj of collidables) {
+                if(camera.position.distanceTo(obj.position) < 3) camera.position.copy(oldPos);
             }
+            camera.position.y = player.height;
+
+            // Gun animation
+            gun.position.z += (-0.6 - gun.position.z) * 0.1;
+
+            // Player Bullets
+            bullets.forEach((b, i) => {
+                b.mesh.position.add(b.dir.clone().multiplyScalar(2));
+                enemies.forEach((en, ei) => {
+                    if(b.mesh.position.distanceTo(en.mesh.position) < 1.5) {
+                        scene.remove(en.mesh); enemies.splice(ei, 1);
+                    }
+                });
+            });
+
+            // Enemy AI (Shoot Back)
+            enemies.forEach(en => {
+                const dist = en.mesh.position.distanceTo(camera.position);
+                en.mesh.lookAt(camera.position);
+                
+                if(dist < 40 && time - en.lastShot > 2000) {
+                    const eb = new THREE.Mesh(new THREE.SphereGeometry(0.2), new THREE.MeshBasicMaterial({color: 0xff0000}));
+                    eb.position.copy(en.mesh.position);
+                    const eDir = new THREE.Vector3().subVectors(camera.position, en.mesh.position).normalize();
+                    enemyBullets.push({mesh: eb, dir: eDir});
+                    scene.add(eb);
+                    en.lastShot = time;
+                }
+            });
+
+            // Enemy Bullet Physics
+            enemyBullets.forEach((eb, i) => {
+                eb.mesh.position.add(eb.dir.clone().multiplyScalar(0.8));
+                if(eb.mesh.position.distanceTo(camera.position) < 1.5) {
+                    takeDamage(10);
+                    scene.remove(eb.mesh); enemyBullets.splice(i, 1);
+                }
+            });
+
             renderer.render(scene, camera);
         }
 
