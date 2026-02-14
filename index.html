@@ -3,122 +3,104 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VANGUARD | AAA SINGLE-FILE EDITION</title>
+    <title>VANGUARD PRO | AAA DAYLIGHT OPS</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Rajdhani:wght@600&display=swap" rel="stylesheet">
-    
     <style>
-        /* CSS: LOBBY AND UI */
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #87CEEB; font-family: 'Rajdhani', sans-serif; }
-        
         canvas { display: block; position: fixed; top: 0; left: 0; z-index: 1; }
 
+        /* HUD & UI */
         #ui-layer {
             position: absolute; z-index: 100; width: 100%; height: 100%;
-            background: linear-gradient(rgba(0,0,0,0.2), rgba(0,0,0,0.6));
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
-            transition: opacity 0.5s ease;
+            background: rgba(0,0,0,0.3); display: flex; flex-direction: column; justify-content: center; align-items: center;
         }
-
         .lobby-card {
-            background: rgba(0, 0, 0, 0.85);
-            padding: 60px;
-            border-top: 5px solid #00ffcc;
-            text-align: center;
-            backdrop-filter: blur(10px);
-            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            background: rgba(0, 0, 0, 0.9); padding: 50px; border-left: 5px solid #00ffcc;
+            text-align: center; backdrop-filter: blur(15px); box-shadow: 0 0 50px rgba(0,0,0,0.8);
         }
-
-        h1 { font-family: 'Orbitron'; font-size: 4rem; margin: 0; color: #fff; letter-spacing: 15px; }
-        p { color: #00ffcc; letter-spacing: 5px; margin-bottom: 40px; }
-
+        h1 { font-family: 'Orbitron'; font-size: 3.5rem; margin: 0; color: #fff; letter-spacing: 12px; }
         .btn-deploy {
-            background: #00ffcc; border: none; color: #000;
-            padding: 20px 80px; font-size: 1.8rem; font-weight: bold; 
-            cursor: pointer; text-transform: uppercase; transition: 0.3s;
-            clip-path: polygon(10% 0, 100% 0, 90% 100%, 0 100%);
+            background: #00ffcc; border: none; color: #000; padding: 15px 60px; font-size: 1.5rem; 
+            font-weight: bold; cursor: pointer; text-transform: uppercase; margin-top: 20px;
         }
-        .btn-deploy:hover { background: #fff; transform: scale(1.1); box-shadow: 0 0 30px #00ffcc; }
 
+        /* IN-GAME HUD */
+        #game-hud {
+            position: absolute; top: 20px; left: 20px; z-index: 50; display: none;
+            color: #00ffcc; font-size: 1.2rem; text-shadow: 2px 2px #000;
+        }
         #crosshair {
-            position: fixed; top: 50%; left: 50%; width: 12px; height: 12px;
-            border: 2px solid #00ffcc; border-radius: 50%;
-            transform: translate(-50%, -50%); z-index: 50; display: none;
-            pointer-events: none;
+            position: fixed; top: 50%; left: 50%; width: 20px; height: 20px;
+            border: 1px solid rgba(0,255,204,0.8); border-radius: 50%;
+            transform: translate(-50%, -50%); z-index: 50; display: none; pointer-events: none;
         }
-
-        .instructions { color: #888; margin-top: 20px; font-size: 0.9rem; }
+        #crosshair::after { content: ''; position: absolute; top: 50%; left: 50%; width: 2px; height: 2px; background: #00ffcc; transform: translate(-50%, -50%); }
     </style>
 </head>
 <body>
 
     <div id="crosshair"></div>
+    <div id="game-hud">
+        PLAYERS IN SESSION: <span id="player-count">32</span><br>
+        ENEMIES DETECTED: <span id="enemy-count">0</span><br>
+        SECTOR: NORTHERN FOREST (BETA)
+    </div>
 
     <div id="ui-layer">
         <div class="lobby-card">
             <h1>VANGUARD</h1>
-            <p>FOREST SECTOR // BRIGHT DAYLIGHT</p>
-            <button class="btn-deploy" id="play-button">DEPLOY</button>
-            <div class="instructions">WASD to Move | SPACE to Jump | CLICK to Shoot | ESC to Menu</div>
+            <p style="color: #888;">TRIPLE-A GRAPHICS // REAL-TIME LIGHTING</p>
+            <button class="btn-deploy" id="play-button">DEPLOY TO MAP</button>
         </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
 
     <script>
-        // JAVASCRIPT: GAME LOGIC
-        let scene, camera, renderer, clock;
+        let scene, camera, renderer, clock, gun;
         let isPlaying = false;
-        let player = { height: 1.8, velocityY: 0, isJumping: false };
-        let bullets = [], enemies = [], trees = [];
+        let player = { height: 1.7, velocityY: 0, isJumping: false };
+        let bullets = [], enemies = [];
         const keys = {};
 
         function init() {
-            // 1. Scene Setup
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x87CEEB); // Daylight Sky
-            scene.fog = new THREE.Fog(0x87CEEB, 10, 120);
+            scene.background = new THREE.Color(0x90caef);
+            scene.fog = new THREE.Fog(0x90caef, 5, 150);
 
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.rotation.order = 'YXZ'; // Prevents camera gimbal lock
+            camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.rotation.order = 'YXZ';
 
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
             document.body.appendChild(renderer.domElement);
 
             clock = new THREE.Clock();
 
-            // 2. Lighting
-            const sun = new THREE.DirectionalLight(0xffffff, 1.5);
-            sun.position.set(50, 100, 50);
+            // --- REALISTIC LIGHTING ---
+            const sun = new THREE.DirectionalLight(0xffffff, 1.8);
+            sun.position.set(40, 60, 20);
             sun.castShadow = true;
-            // High-quality shadows
-            sun.shadow.camera.left = -50; sun.shadow.camera.right = 50;
-            sun.shadow.camera.top = 50; sun.shadow.camera.bottom = -50;
+            sun.shadow.mapSize.width = 2048;
+            sun.shadow.mapSize.height = 2048;
             scene.add(sun);
-            scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+            scene.add(new THREE.AmbientLight(0xffffff, 0.4));
 
-            // 3. World Building
-            createForest();
+            createMap();
+            createGun();
 
-            // 4. Input Listeners
+            // --- UI LOGIC ---
             const playBtn = document.getElementById('play-button');
-            playBtn.addEventListener('click', () => {
-                document.body.requestPointerLock();
-            });
+            playBtn.addEventListener('click', () => document.body.requestPointerLock());
 
             document.addEventListener('pointerlockchange', () => {
-                if (document.pointerLockElement === document.body) {
-                    isPlaying = true;
-                    document.getElementById('ui-layer').style.opacity = '0';
-                    setTimeout(() => { if(isPlaying) document.getElementById('ui-layer').style.display = 'none'; }, 500);
-                    document.getElementById('crosshair').style.display = 'block';
-                } else {
-                    isPlaying = false;
-                    document.getElementById('ui-layer').style.display = 'flex';
-                    document.getElementById('ui-layer').style.opacity = '1';
-                    document.getElementById('crosshair').style.display = 'none';
-                }
+                const locked = document.pointerLockElement === document.body;
+                isPlaying = locked;
+                document.getElementById('ui-layer').style.display = locked ? 'none' : 'flex';
+                document.getElementById('game-hud').style.display = locked ? 'block' : 'none';
+                document.getElementById('crosshair').style.display = locked ? 'block' : 'none';
             });
 
             window.addEventListener('keydown', (e) => keys[e.code] = true);
@@ -129,118 +111,133 @@
             animate();
         }
 
-        function createForest() {
-            // Grass Floor
-            const floorGeo = new THREE.PlaneGeometry(300, 300);
-            const floorMat = new THREE.MeshStandardMaterial({ color: 0x3d7a32 });
-            const floor = new THREE.Mesh(floorGeo, floorMat);
+        function createGun() {
+            // AAA Realistic Rifle Mockup
+            gun = new THREE.Group();
+            const body = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.12, 0.6), new THREE.MeshStandardMaterial({color: 0x111111}));
+            const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.5), new THREE.MeshStandardMaterial({color: 0x050505}));
+            barrel.rotation.x = Math.PI / 2;
+            barrel.position.z = -0.4;
+            
+            const scope = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 0.15), new THREE.MeshStandardMaterial({color: 0x222222}));
+            scope.position.y = 0.08;
+            
+            gun.add(body, barrel, scope);
+            gun.position.set(0.3, -0.25, -0.5);
+            camera.add(gun);
+            scene.add(camera);
+        }
+
+        function createMap() {
+            // Grass
+            const floor = new THREE.Mesh(new THREE.PlaneGeometry(500, 500), new THREE.MeshStandardMaterial({ color: 0x4a7a3a }));
             floor.rotation.x = -Math.PI / 2;
             floor.receiveShadow = true;
             scene.add(floor);
 
-            // House/Building in distance
+            // --- PROPER HOUSE INTERIOR ---
             const house = new THREE.Group();
-            const walls = new THREE.Mesh(new THREE.BoxGeometry(8, 5, 8), new THREE.MeshStandardMaterial({color: 0x555555}));
-            const roof = new THREE.Mesh(new THREE.ConeGeometry(7, 4, 4), new THREE.MeshStandardMaterial({color: 0x330000}));
-            walls.position.y = 2.5; roof.position.y = 6.5; roof.rotation.y = Math.PI/4;
-            house.add(walls, roof);
-            house.position.set(0, 0, -30);
+            const mat = new THREE.MeshStandardMaterial({color: 0x777777, side: THREE.DoubleSide});
+            
+            // Walls
+            const wallBack = new THREE.Mesh(new THREE.BoxGeometry(10, 5, 0.2), mat);
+            wallBack.position.z = -5;
+            
+            const wallLeft = new THREE.Mesh(new THREE.BoxGeometry(0.2, 5, 10), mat);
+            wallLeft.position.x = -5;
+            
+            const wallRight = new THREE.Mesh(new THREE.BoxGeometry(0.2, 5, 10), mat);
+            wallRight.position.x = 5;
+
+            const wallFront = new THREE.Group();
+            const part1 = new THREE.Mesh(new THREE.BoxGeometry(4, 5, 0.2), mat);
+            part1.position.x = -3;
+            const part2 = new THREE.Mesh(new THREE.BoxGeometry(4, 5, 0.2), mat);
+            part2.position.x = 3;
+            wallFront.add(part1, part2); // Leaves a door gap in middle
+            wallFront.position.z = 5;
+
+            // Floor & Ceiling
+            const hFloor = new THREE.Mesh(new THREE.BoxGeometry(10, 0.1, 10), new THREE.MeshStandardMaterial({color: 0x332211}));
+            const hRoof = new THREE.Mesh(new THREE.BoxGeometry(11, 0.2, 11), mat);
+            hRoof.position.y = 5;
+
+            house.add(wallBack, wallLeft, wallRight, wallFront, hFloor, hRoof);
+            house.position.set(0, 0.1, -20);
             scene.add(house);
 
-            // Populate Trees
-            for (let i = 0; i < 100; i++) {
-                const x = Math.random() * 150 - 75;
-                const z = Math.random() * 150 - 75;
-                if(Math.abs(x) < 10 && Math.abs(z) < 10) continue; // Spawn clear zone
-
+            // Forest
+            for(let i=0; i<80; i++) {
+                const x = Math.random()*200-100, z = Math.random()*200-100;
+                if(Math.abs(x) < 15 && Math.abs(z+20) < 15) continue;
                 const tree = new THREE.Group();
-                const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.4, 4), new THREE.MeshStandardMaterial({color: 0x4b3621}));
-                const leaves = new THREE.Mesh(new THREE.ConeGeometry(2, 6, 8), new THREE.MeshStandardMaterial({color: 0x1b3022}));
-                leaves.position.y = 4;
-                tree.add(trunk, leaves);
-                tree.position.set(x, 2, z);
-                scene.add(tree);
+                const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.5, 6), new THREE.MeshStandardMaterial({color: 0x3d2817}));
+                const leaves = new THREE.Mesh(new THREE.ConeGeometry(2.5, 8, 8), new THREE.MeshStandardMaterial({color: 0x1e3a1a}));
+                leaves.position.y = 5;
+                tree.add(trunk, leaves); tree.position.set(x, 3, z); scene.add(tree);
             }
 
             // Enemies
-            for(let i=0; i<15; i++) {
-                const enemy = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), new THREE.MeshStandardMaterial({color: 0xff0000}));
-                enemy.position.set(Math.random()*100-50, 1, Math.random()*100-50);
-                scene.add(enemy);
-                enemies.push(enemy);
+            for(let i=0; i<10; i++) {
+                const en = new THREE.Mesh(new THREE.CapsuleGeometry(0.4, 1), new THREE.MeshStandardMaterial({color: 0xff0033}));
+                en.position.set(Math.random()*60-30, 1, Math.random()*60-30);
+                scene.add(en); enemies.push(en);
             }
+            document.getElementById('enemy-count').innerText = enemies.length;
         }
 
         function onMouseMove(e) {
             if (isPlaying) {
                 camera.rotation.y -= e.movementX * 0.002;
                 camera.rotation.x -= e.movementY * 0.002;
-                camera.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, camera.rotation.x));
+                camera.rotation.x = Math.max(-1.5, Math.min(1.5, camera.rotation.x));
             }
         }
 
         function shoot() {
-            const b = new THREE.Mesh(new THREE.SphereGeometry(0.15), new THREE.MeshBasicMaterial({color: 0xffff00}));
+            // AAA Recoil Effect
+            gun.position.z += 0.05;
+            
+            const b = new THREE.Mesh(new THREE.SphereGeometry(0.08), new THREE.MeshBasicMaterial({color: 0xffff00}));
             b.position.copy(camera.position);
-            const dir = new THREE.Vector3();
-            camera.getWorldDirection(dir);
-            bullets.push({ mesh: b, dir: dir, time: Date.now() });
+            const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
+            bullets.push({ mesh: b, dir: dir });
             scene.add(b);
         }
 
         function animate() {
             requestAnimationFrame(animate);
-            
             if (isPlaying) {
-                const speed = 0.15;
-                // Movement
+                const speed = keys['ShiftLeft'] ? 0.25 : 0.12;
                 if(keys['KeyW']) camera.translateZ(-speed);
                 if(keys['KeyS']) camera.translateZ(speed);
                 if(keys['KeyA']) camera.translateX(-speed);
                 if(keys['KeyD']) camera.translateX(speed);
 
-                // Jumping
-                if(keys['Space'] && !player.isJumping) {
-                    player.velocityY = 0.2;
-                    player.isJumping = true;
-                }
+                // Gravity & Jump
+                if(keys['Space'] && !player.isJumping) { player.velocityY = 0.2; player.isJumping = true; }
                 if(player.isJumping) {
-                    camera.position.y += player.velocityY;
-                    player.velocityY -= 0.01; // Gravity
-                    if(camera.position.y <= player.height) {
-                        camera.position.y = player.height;
-                        player.isJumping = false;
-                    }
-                } else {
-                    camera.position.y = player.height;
-                }
+                    camera.position.y += player.velocityY; player.velocityY -= 0.01;
+                    if(camera.position.y <= player.height) { camera.position.y = player.height; player.isJumping = false; }
+                } else { camera.position.y = player.height; }
 
-                // Bullet Physics & Collision
+                // Weapon Sway
+                gun.position.z += (-0.5 - gun.position.z) * 0.1;
+                gun.position.y = -0.25 + Math.sin(Date.now() * 0.005) * 0.01;
+
                 bullets.forEach((b, i) => {
-                    b.mesh.position.add(b.dir.clone().multiplyScalar(2));
-                    
-                    // Hit Check
+                    b.mesh.position.add(b.dir.clone().multiplyScalar(2.5));
                     enemies.forEach((en, ei) => {
-                        if(b.mesh.position.distanceTo(en.position) < 2) {
-                            scene.remove(en);
-                            enemies.splice(ei, 1);
-                            scene.remove(b.mesh);
-                            bullets.splice(i, 1);
+                        if(b.mesh.position.distanceTo(en.position) < 1.5) {
+                            scene.remove(en); enemies.splice(ei, 1);
+                            document.getElementById('enemy-count').innerText = enemies.length;
                         }
                     });
-
-                    // Cleanup old bullets
-                    if(Date.now() - b.time > 2000) {
-                        scene.remove(b.mesh);
-                        bullets.splice(i, 1);
-                    }
                 });
             }
-            
             renderer.render(scene, camera);
         }
 
-        // Run Engine
         window.onload = init;
         window.onresize = () => {
             camera.aspect = window.innerWidth / window.innerHeight;
