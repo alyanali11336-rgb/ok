@@ -2,59 +2,56 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Frontline | Pro Edition</title>
+    <title>Frontline | AAA Overgrowth</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; }
+        body { margin: 0; overflow: hidden; background: #87ceeb; font-family: 'Segoe UI', sans-serif; }
         
-        /* Tactical Instructor Icon */
-        #instructor {
-            position: absolute; top: 20px; right: 20px; width: 300px;
-            background: rgba(0, 40, 0, 0.8); border: 2px solid #00ff00;
-            padding: 15px; color: #00ff00; display: flex; align-items: center; gap: 15px;
-            clip-path: polygon(0 0, 100% 0, 100% 85%, 90% 100%, 0 100%);
-            animation: flicker 2s infinite;
+        /* AAA Minimalist HUD */
+        #hud { position: absolute; bottom: 40px; left: 40px; color: white; text-shadow: 1px 1px 4px rgba(0,0,0,0.8); pointer-events: none; }
+        #hp-container { width: 300px; height: 4px; background: rgba(0,0,0,0.3); margin-top: 10px; border-radius: 2px; }
+        #hp-fill { width: 100%; height: 100%; background: #fff; box-shadow: 0 0 15px #fff; transition: width 0.3s; }
+
+        /* Tactical Instructor (AAA Style) */
+        #comms {
+            position: absolute; top: 30px; left: 30px; background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px); padding: 15px; border-left: 4px solid #fff;
+            color: white; width: 280px; font-size: 13px; border-radius: 0 5px 5px 0;
         }
-        #instructor img { width: 60px; height: 60px; border: 1px solid #00ff00; border-radius: 5px; background: #002200; }
-        #instr-text { font-size: 12px; font-family: 'Courier New'; line-height: 1.2; }
 
-        /* HUD */
-        #hud { position: absolute; bottom: 30px; left: 30px; color: #00ff00; pointer-events: none; }
-        #hp-frame { width: 250px; height: 10px; background: rgba(0,255,0,0.1); border: 1px solid #00ff00; }
-        #hp-bar { width: 100%; height: 100%; background: #00ff00; }
+        #crosshair { 
+            position: absolute; top: 50%; left: 50%; width: 4px; height: 4px; 
+            background: white; border-radius: 50%; transform: translate(-50%, -50%); 
+            box-shadow: 0 0 5px rgba(0,0,0,0.5);
+        }
 
-        #crosshair { position: absolute; top: 50%; left: 50%; width: 20px; height: 20px; border: 1px solid #0f0; border-radius: 50%; transform: translate(-50%, -50%); opacity: 0.5; }
-        
-        #menu { position: absolute; inset: 0; background: radial-gradient(circle, #1a2a1a, #000); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; color: #0f0; }
-        button { padding: 15px 50px; background: #0f0; border: none; cursor: pointer; font-weight: bold; letter-spacing: 2px; }
-
-        @keyframes flicker { 0% { opacity: 0.9; } 50% { opacity: 1; } 100% { opacity: 0.9; } }
+        #menu { 
+            position: absolute; inset: 0; background: white; 
+            display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; 
+        }
+        button { 
+            padding: 15px 80px; background: #000; color: #fff; border: none; 
+            font-weight: bold; cursor: pointer; letter-spacing: 5px; transition: 0.3s;
+        }
+        button:hover { letter-spacing: 10px; background: #333; }
     </style>
 </head>
 <body>
 
     <div id="menu">
-        <h1>FRONTLINE PROTOCOL</h1>
-        <p>SECTOR: BLACK FOREST</p>
-        <button onclick="controls.lock()">INITIALIZE MISSION</button>
+        <h1 style="font-weight: 900; letter-spacing: -2px; font-size: 4em; color: #000;">FRONTLINE</h1>
+        <p style="color: #888; margin-bottom: 40px;">v4.0 HIGH-FIDELITY FOREST RENDER</p>
+        <button onclick="controls.lock()">DEPLOY MISSION</button>
     </div>
 
-    <div id="instructor">
-        <div style="text-align:center">
-            <div style="width:50px; height:50px; background:#00ff00; border-radius:50%; margin:auto; display:flex; align-items:center; justify-content:center; color:black; font-weight:bold;">HQ</div>
-            <div style="font-size:10px; margin-top:5px;">COMMS</div>
-        </div>
-        <div id="instr-text">
-            <strong>COMMANDER:</strong><br>
-            - WASD: Move<br>
-            - SPACE: Jump | C: Crouch<br>
-            - SHIFT: Sprint<br>
-            - CLICK: Neutralize Targets
-        </div>
+    <div id="comms">
+        <span style="font-weight: bold; opacity: 0.6;">SQUAD COMMANDER</span><br>
+        "Move through the trees. Neutralize hostiles."<br>
+        <span style="font-size: 10px; opacity: 0.5; margin-top: 10px; display: block;">SPACE: JUMP | C: CROUCH | SHIFT: SPRINT</span>
     </div>
 
     <div id="hud">
-        STATUS: OPERATIONAL
-        <div id="hp-frame"><div id="hp-bar"></div></div>
+        <span id="hp-text" style="font-size: 24px; font-weight: 300;">100</span>
+        <div id="hp-container"><div id="hp-fill"></div></div>
     </div>
 
     <div id="crosshair"></div>
@@ -72,97 +69,120 @@
         import * as THREE from 'three';
         import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 
+        // --- CORE ENGINE ---
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x0a0f0a);
-        scene.fog = new THREE.Fog(0x0a0f0a, 10, 80);
+        scene.background = new THREE.Color(0xa3d2ff); // High-key Sky
+        scene.fog = new THREE.FogExp2(0xa3d2ff, 0.015); // Distance Haze
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.y = 1.7; // Standard Eye Level
+        camera.position.y = 1.7;
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.toneMapping = THREE.ACESFilmicToneMapping; // Cinematic lighting
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         document.body.appendChild(renderer.domElement);
 
         window.controls = new PointerLockControls(camera, document.body);
 
-        // --- GAME STATE ---
-        let velocity = new THREE.Vector3();
-        let direction = new THREE.Vector3();
-        let isGrounded = true;
-        let isCrouching = false;
-        let health = 100;
-        const enemies = [], keys = {};
+        // --- LIGHTING (AAA SUNLIGHT) ---
+        const ambient = new THREE.AmbientLight(0xffffff, 0.8);
+        scene.add(ambient);
 
-        // --- WORLD ---
-        const ground = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), new THREE.MeshStandardMaterial({ color: 0x111111 }));
-        ground.rotation.x = -Math.PI/2;
+        const sun = new THREE.DirectionalLight(0xffffff, 2.5);
+        sun.position.set(50, 100, 50);
+        sun.castShadow = true;
+        sun.shadow.mapSize.width = 2048; // High res shadows
+        sun.shadow.mapSize.height = 2048;
+        scene.add(sun);
+
+        // --- ENVIRONMENT ---
+        const floorGeo = new THREE.PlaneGeometry(500, 500);
+        const floorMat = new THREE.MeshStandardMaterial({ color: 0x4d5d30, roughness: 0.8 });
+        const ground = new THREE.Mesh(floorGeo, floorMat);
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
         scene.add(ground);
 
-        scene.add(new THREE.AmbientLight(0xffffff, 0.4));
-        const pLight = new THREE.PointLight(0x00ff00, 10, 100);
-        pLight.position.set(0, 10, 0);
-        scene.add(pLight);
-
-        // Houses & Trees
-        for(let i=0; i<15; i++){
-            const h = new THREE.Mesh(new THREE.BoxGeometry(6, 4, 6), new THREE.MeshStandardMaterial({color: 0x222222}));
-            h.position.set((Math.random()-0.5)*150, 2, (Math.random()-0.5)*150);
-            scene.add(h);
+        // Lush Forest Assets
+        const treeTrunkMat = new THREE.MeshStandardMaterial({ color: 0x3d2b1f });
+        const treeLeavesMat = new THREE.MeshStandardMaterial({ color: 0x2d4c1e, roughness: 0.6 });
+        
+        for(let i=0; i<120; i++) {
+            const tree = new THREE.Group();
+            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.3, 5), treeTrunkMat);
+            const leaves = new THREE.Mesh(new THREE.DodecahedronGeometry(2.5), treeLeavesMat);
+            leaves.position.y = 4;
+            tree.add(trunk, leaves);
+            tree.position.set((Math.random()-0.5)*200, 0, (Math.random()-0.5)*200);
+            tree.castShadow = true;
+            tree.receiveShadow = true;
+            scene.add(tree);
         }
 
         // --- PLAYER WEAPON ---
-        const gun = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.6), new THREE.MeshStandardMaterial({color: 0x00ff00}));
-        gun.position.set(0.3, -0.3, -0.5);
+        const gun = new THREE.Group();
+        const body = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.15, 0.6), new THREE.MeshStandardMaterial({color: 0x111111}));
+        const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.5), new THREE.MeshStandardMaterial({color: 0x000000}));
+        barrel.rotation.x = Math.PI/2; barrel.position.z = -0.4;
+        gun.add(body, barrel);
+        gun.position.set(0.35, -0.3, -0.5);
         camera.add(gun);
         scene.add(camera);
 
-        // --- INPUT ---
+        // --- PHYSICS & MOVEMENT ---
+        let velocity = new THREE.Vector3();
+        let isGrounded = true, isCrouching = false, health = 100;
+        const keys = {};
+
         document.addEventListener('keydown', (e) => {
             keys[e.code] = true;
-            if(e.code === 'Space' && isGrounded) { velocity.y += 5; isGrounded = false; }
-            if(e.code === 'KeyC') toggleCrouch(true);
+            if(e.code === 'Space' && isGrounded) { velocity.y = 5.0; isGrounded = false; }
+            if(e.code === 'KeyC') { isCrouching = true; }
         });
         document.addEventListener('keyup', (e) => {
             keys[e.code] = false;
-            if(e.code === 'KeyC') toggleCrouch(false);
+            if(e.code === 'KeyC') { isCrouching = false; }
         });
 
-        function toggleCrouch(active) {
-            isCrouching = active;
-            camera.position.y = active ? 0.8 : 1.7; // Drops camera to floor level
-        }
-
-        window.addEventListener('mousedown', () => {
-            if(!controls.isLocked) return;
-            gun.position.z += 0.05; setTimeout(()=>gun.position.z -= 0.05, 50);
-        });
-
-        // --- ANIMATION ---
+        // --- LOOP ---
         function animate() {
             requestAnimationFrame(animate);
             if(controls.isLocked) {
-                // Gravity & Jump Physics
-                velocity.y -= 0.15; // Gravity
+                // Gravity
+                velocity.y -= 0.18;
                 camera.position.y += velocity.y * 0.016;
 
-                if(camera.position.y < (isCrouching ? 0.8 : 1.7)) {
-                    camera.position.y = (isCrouching ? 0.8 : 1.7);
+                const targetHeight = isCrouching ? 0.9 : 1.7;
+                if(camera.position.y <= targetHeight) {
+                    camera.position.y = targetHeight;
                     velocity.y = 0;
                     isGrounded = true;
                 }
 
-                // Movement
-                let speed = keys['ShiftLeft'] ? 0.2 : 0.1;
-                if(isCrouching) speed = 0.05; // Crouch walking is slow
+                // Smooth Movement
+                let moveSpeed = (keys['ShiftLeft'] ? 0.25 : 0.12);
+                if(isCrouching) moveSpeed = 0.06;
 
-                if(keys['KeyW']) controls.moveForward(speed);
-                if(keys['KeyS']) controls.moveForward(-speed);
-                if(keys['KeyA']) controls.moveRight(-speed);
-                if(keys['KeyD']) controls.moveRight(speed);
+                if(keys['KeyW']) controls.moveForward(moveSpeed);
+                if(keys['KeyS']) controls.moveForward(-moveSpeed);
+                if(keys['KeyA']) controls.moveRight(-moveSpeed);
+                if(keys['KeyD']) controls.moveRight(moveSpeed);
+
+                // Gun sway
+                gun.position.y = -0.3 + Math.sin(Date.now() * 0.005) * 0.01;
             }
             renderer.render(scene, camera);
         }
         animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
 
         controls.addEventListener('lock', () => document.getElementById('menu').style.display='none');
         controls.addEventListener('unlock', () => document.getElementById('menu').style.display='flex');
