@@ -3,55 +3,250 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VANGUARD | AAA DAYLIGHT</title>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap" rel="stylesheet">
+    <title>VANGUARD | AAA SINGLE-FILE EDITION</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Rajdhani:wght@600&display=swap" rel="stylesheet">
+    
     <style>
-        body { margin: 0; background: #87CEEB; color: #fff; font-family: sans-serif; overflow: hidden; }
-        canvas { display: block; position: fixed; top: 0; left: 0; z-index: 1; }
+        /* CSS: LOBBY AND UI */
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #87CEEB; font-family: 'Rajdhani', sans-serif; }
         
-        #ui-layer { 
-            position: absolute; z-index: 100; width: 100%; height: 100%; 
-            background: rgba(0,0,0,0.5);
+        canvas { display: block; position: fixed; top: 0; left: 0; z-index: 1; }
+
+        #ui-layer {
+            position: absolute; z-index: 100; width: 100%; height: 100%;
+            background: linear-gradient(rgba(0,0,0,0.2), rgba(0,0,0,0.6));
             display: flex; flex-direction: column; justify-content: center; align-items: center;
+            transition: opacity 0.5s ease;
         }
 
         .lobby-card {
-            background: rgba(0, 0, 0, 0.8);
+            background: rgba(0, 0, 0, 0.85);
             padding: 60px;
-            border: 2px solid #00ffcc;
+            border-top: 5px solid #00ffcc;
             text-align: center;
-            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
         }
 
-        h1 { font-family: 'Orbitron'; font-size: 3.5rem; margin: 0; color: #fff; }
+        h1 { font-family: 'Orbitron'; font-size: 4rem; margin: 0; color: #fff; letter-spacing: 15px; }
+        p { color: #00ffcc; letter-spacing: 5px; margin-bottom: 40px; }
 
         .btn-deploy {
             background: #00ffcc; border: none; color: #000;
-            padding: 20px 60px; font-size: 1.5rem; font-weight: bold; 
-            cursor: pointer; margin-top: 30px;
-            text-transform: uppercase;
+            padding: 20px 80px; font-size: 1.8rem; font-weight: bold; 
+            cursor: pointer; text-transform: uppercase; transition: 0.3s;
+            clip-path: polygon(10% 0, 100% 0, 90% 100%, 0 100%);
         }
-        .btn-deploy:hover { background: #fff; }
+        .btn-deploy:hover { background: #fff; transform: scale(1.1); box-shadow: 0 0 30px #00ffcc; }
 
         #crosshair {
-            position: fixed; top: 50%; left: 50%; width: 10px; height: 10px;
-            background: #00ffcc; border-radius: 50%;
+            position: fixed; top: 50%; left: 50%; width: 12px; height: 12px;
+            border: 2px solid #00ffcc; border-radius: 50%;
             transform: translate(-50%, -50%); z-index: 50; display: none;
+            pointer-events: none;
         }
+
+        .instructions { color: #888; margin-top: 20px; font-size: 0.9rem; }
     </style>
 </head>
 <body>
+
     <div id="crosshair"></div>
 
     <div id="ui-layer">
         <div class="lobby-card">
             <h1>VANGUARD</h1>
-            <p style="color: #00ffcc;">SYSTEM READY // DAYLIGHT OPS</p>
-            <button class="btn-deploy" id="play-button">DEPLOY NOW</button>
+            <p>FOREST SECTOR // BRIGHT DAYLIGHT</p>
+            <button class="btn-deploy" id="play-button">DEPLOY</button>
+            <div class="instructions">WASD to Move | SPACE to Jump | CLICK to Shoot | ESC to Menu</div>
         </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
-    <script src="main.js"></script>
+
+    <script>
+        // JAVASCRIPT: GAME LOGIC
+        let scene, camera, renderer, clock;
+        let isPlaying = false;
+        let player = { height: 1.8, velocityY: 0, isJumping: false };
+        let bullets = [], enemies = [], trees = [];
+        const keys = {};
+
+        function init() {
+            // 1. Scene Setup
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87CEEB); // Daylight Sky
+            scene.fog = new THREE.Fog(0x87CEEB, 10, 120);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.rotation.order = 'YXZ'; // Prevents camera gimbal lock
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            document.body.appendChild(renderer.domElement);
+
+            clock = new THREE.Clock();
+
+            // 2. Lighting
+            const sun = new THREE.DirectionalLight(0xffffff, 1.5);
+            sun.position.set(50, 100, 50);
+            sun.castShadow = true;
+            // High-quality shadows
+            sun.shadow.camera.left = -50; sun.shadow.camera.right = 50;
+            sun.shadow.camera.top = 50; sun.shadow.camera.bottom = -50;
+            scene.add(sun);
+            scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+
+            // 3. World Building
+            createForest();
+
+            // 4. Input Listeners
+            const playBtn = document.getElementById('play-button');
+            playBtn.addEventListener('click', () => {
+                document.body.requestPointerLock();
+            });
+
+            document.addEventListener('pointerlockchange', () => {
+                if (document.pointerLockElement === document.body) {
+                    isPlaying = true;
+                    document.getElementById('ui-layer').style.opacity = '0';
+                    setTimeout(() => { if(isPlaying) document.getElementById('ui-layer').style.display = 'none'; }, 500);
+                    document.getElementById('crosshair').style.display = 'block';
+                } else {
+                    isPlaying = false;
+                    document.getElementById('ui-layer').style.display = 'flex';
+                    document.getElementById('ui-layer').style.opacity = '1';
+                    document.getElementById('crosshair').style.display = 'none';
+                }
+            });
+
+            window.addEventListener('keydown', (e) => keys[e.code] = true);
+            window.addEventListener('keyup', (e) => keys[e.code] = false);
+            window.addEventListener('mousemove', onMouseMove);
+            window.addEventListener('mousedown', () => { if(isPlaying) shoot(); });
+
+            animate();
+        }
+
+        function createForest() {
+            // Grass Floor
+            const floorGeo = new THREE.PlaneGeometry(300, 300);
+            const floorMat = new THREE.MeshStandardMaterial({ color: 0x3d7a32 });
+            const floor = new THREE.Mesh(floorGeo, floorMat);
+            floor.rotation.x = -Math.PI / 2;
+            floor.receiveShadow = true;
+            scene.add(floor);
+
+            // House/Building in distance
+            const house = new THREE.Group();
+            const walls = new THREE.Mesh(new THREE.BoxGeometry(8, 5, 8), new THREE.MeshStandardMaterial({color: 0x555555}));
+            const roof = new THREE.Mesh(new THREE.ConeGeometry(7, 4, 4), new THREE.MeshStandardMaterial({color: 0x330000}));
+            walls.position.y = 2.5; roof.position.y = 6.5; roof.rotation.y = Math.PI/4;
+            house.add(walls, roof);
+            house.position.set(0, 0, -30);
+            scene.add(house);
+
+            // Populate Trees
+            for (let i = 0; i < 100; i++) {
+                const x = Math.random() * 150 - 75;
+                const z = Math.random() * 150 - 75;
+                if(Math.abs(x) < 10 && Math.abs(z) < 10) continue; // Spawn clear zone
+
+                const tree = new THREE.Group();
+                const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.4, 4), new THREE.MeshStandardMaterial({color: 0x4b3621}));
+                const leaves = new THREE.Mesh(new THREE.ConeGeometry(2, 6, 8), new THREE.MeshStandardMaterial({color: 0x1b3022}));
+                leaves.position.y = 4;
+                tree.add(trunk, leaves);
+                tree.position.set(x, 2, z);
+                scene.add(tree);
+            }
+
+            // Enemies
+            for(let i=0; i<15; i++) {
+                const enemy = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), new THREE.MeshStandardMaterial({color: 0xff0000}));
+                enemy.position.set(Math.random()*100-50, 1, Math.random()*100-50);
+                scene.add(enemy);
+                enemies.push(enemy);
+            }
+        }
+
+        function onMouseMove(e) {
+            if (isPlaying) {
+                camera.rotation.y -= e.movementX * 0.002;
+                camera.rotation.x -= e.movementY * 0.002;
+                camera.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, camera.rotation.x));
+            }
+        }
+
+        function shoot() {
+            const b = new THREE.Mesh(new THREE.SphereGeometry(0.15), new THREE.MeshBasicMaterial({color: 0xffff00}));
+            b.position.copy(camera.position);
+            const dir = new THREE.Vector3();
+            camera.getWorldDirection(dir);
+            bullets.push({ mesh: b, dir: dir, time: Date.now() });
+            scene.add(b);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            if (isPlaying) {
+                const speed = 0.15;
+                // Movement
+                if(keys['KeyW']) camera.translateZ(-speed);
+                if(keys['KeyS']) camera.translateZ(speed);
+                if(keys['KeyA']) camera.translateX(-speed);
+                if(keys['KeyD']) camera.translateX(speed);
+
+                // Jumping
+                if(keys['Space'] && !player.isJumping) {
+                    player.velocityY = 0.2;
+                    player.isJumping = true;
+                }
+                if(player.isJumping) {
+                    camera.position.y += player.velocityY;
+                    player.velocityY -= 0.01; // Gravity
+                    if(camera.position.y <= player.height) {
+                        camera.position.y = player.height;
+                        player.isJumping = false;
+                    }
+                } else {
+                    camera.position.y = player.height;
+                }
+
+                // Bullet Physics & Collision
+                bullets.forEach((b, i) => {
+                    b.mesh.position.add(b.dir.clone().multiplyScalar(2));
+                    
+                    // Hit Check
+                    enemies.forEach((en, ei) => {
+                        if(b.mesh.position.distanceTo(en.position) < 2) {
+                            scene.remove(en);
+                            enemies.splice(ei, 1);
+                            scene.remove(b.mesh);
+                            bullets.splice(i, 1);
+                        }
+                    });
+
+                    // Cleanup old bullets
+                    if(Date.now() - b.time > 2000) {
+                        scene.remove(b.mesh);
+                        bullets.splice(i, 1);
+                    }
+                });
+            }
+            
+            renderer.render(scene, camera);
+        }
+
+        // Run Engine
+        window.onload = init;
+        window.onresize = () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        };
+    </script>
 </body>
 </html>
