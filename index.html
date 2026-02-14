@@ -2,33 +2,33 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Frontline Protocol | 3D Urban Ops</title>
+    <title>Frontline | Night Forest</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; }
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; }
         #crosshair {
-            position: absolute; top: 50%; left: 50%; width: 12px; height: 12px;
-            border: 2px solid rgba(0, 255, 0, 0.7); border-radius: 50%;
-            transform: translate(-50%, -50%); pointer-events: none;
+            position: absolute; top: 50%; left: 50%; width: 10px; height: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.5); transform: translate(-50%, -50%);
+            pointer-events: none;
         }
-        #ui { position: absolute; bottom: 30px; left: 30px; color: #fff; }
-        #hp-bg { width: 200px; height: 10px; background: rgba(255,255,255,0.2); margin-top: 5px; }
-        #hp-bar { width: 100%; height: 100%; background: #00ff44; box-shadow: 0 0 10px #00ff44; }
+        #ui { position: absolute; bottom: 20px; left: 20px; color: #00ff00; }
         #instructions { 
-            position: absolute; width: 100%; height: 100%; 
-            background: rgba(0,0,0,0.8); display: flex; 
-            justify-content: center; align-items: center; 
-            color: white; cursor: pointer; z-index: 10;
+            position: absolute; width: 100%; height: 100%; background: #000; 
+            display: flex; flex-direction: column; justify-content: center; 
+            align-items: center; color: #00ff00; z-index: 10; text-align: center;
         }
+        button { background: transparent; color: #00ff00; border: 1px solid #00ff00; padding: 10px 20px; cursor: pointer; }
     </style>
 </head>
 <body>
 
-    <div id="instructions"><h1>CLICK TO START MISSION</h1></div>
-    <div id="crosshair"></div>
-    <div id="ui">
-        <div style="font-size: 12px; letter-spacing: 2px;">HEALTH STATUS</div>
-        <div id="hp-bg"><div id="hp-bar"></div></div>
+    <div id="instructions">
+        <h1>NIGHT FOREST PROTOCOL</h1>
+        <p>FLASHLIGHT: ACTIVE | WEAPON: READY</p>
+        <button onclick="this.parentElement.style.display='none'">START MISSION</button>
     </div>
+
+    <div id="crosshair"></div>
+    <div id="ui">NVG STATUS: ONLINE | SECTOR: FOREST</div>
 
     <script type="importmap">
         {
@@ -43,135 +43,147 @@
         import * as THREE from 'three';
         import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 
-        // --- 1. CORE ENGINE ---
+        // --- 1. DARK SCENE SETUP ---
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x050508);
-        scene.fog = new THREE.FogExp2(0x050508, 0.04);
+        scene.background = new THREE.Color(0x000205);
+        scene.fog = new THREE.Fog(0x000000, 1, 30); // Very thick fog for darkness
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.shadowMap.enabled = true;
         document.body.appendChild(renderer.domElement);
 
-        // --- 2. LIGHTING (Atmospheric) ---
-        const ambient = new THREE.AmbientLight(0x404040, 1);
-        scene.add(ambient);
-        const sun = new THREE.DirectionalLight(0x4444ff, 0.5);
-        sun.position.set(10, 20, 10);
-        scene.add(sun);
+        // --- 2. THE TORCH (SpotLight) ---
+        const flashlight = new THREE.SpotLight(0xffffff, 50);
+        flashlight.angle = Math.PI / 6; // Beam width
+        flashlight.penumbra = 0.3; // Soft edges
+        flashlight.decay = 2;
+        flashlight.distance = 40;
+        flashlight.castShadow = true;
 
-        // --- 3. PROPER BUILDINGS & FLOOR ---
-        const textureLoader = new THREE.TextureLoader();
-        // Simple procedural grid texture for "windows"
-        const floorGeo = new THREE.PlaneGeometry(200, 200);
-        const floorMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
-        const floor = new THREE.Mesh(floorGeo, floorMat);
-        floor.rotation.x = -Math.PI/2;
-        scene.add(floor);
+        // Attach flashlight to camera
+        camera.add(flashlight);
+        camera.add(flashlight.target);
+        flashlight.target.position.set(0, 0, -1); // Points forward
+        
+        // Slight moonlight so it's not 100% pitch black
+        const moon = new THREE.AmbientLight(0x0a0a1a, 0.2);
+        scene.add(moon);
 
-        const buildings = [];
-        const boxGeo = new THREE.BoxGeometry(1, 1, 1);
-        for(let i=0; i<80; i++) {
-            const h = 10 + Math.random() * 40;
-            const w = 5 + Math.random() * 5;
-            const bMat = new THREE.MeshStandardMaterial({ color: 0x151515 });
-            const b = new THREE.Mesh(boxGeo, bMat);
-            b.scale.set(w, h, w);
-            b.position.set((Math.random()-0.5)*150, h/2, (Math.random()-0.5)*150);
-            if(b.position.length() > 20) {
-                scene.add(b);
-                buildings.push(b); // Save for collision later
-            }
+        // --- 3. THE FOREST ---
+        // Ground
+        const ground = new THREE.Mesh(
+            new THREE.PlaneGeometry(200, 200),
+            new THREE.MeshStandardMaterial({ color: 0x050505 })
+        );
+        ground.rotation.x = -Math.PI/2;
+        scene.add(ground);
+
+        // Procedural Trees
+        function createTree(x, z) {
+            const tree = new THREE.Group();
+            const trunk = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.2, 0.3, 4),
+                new THREE.MeshStandardMaterial({ color: 0x1a0a00 })
+            );
+            trunk.position.y = 2;
+            
+            const leaves = new THREE.Mesh(
+                new THREE.ConeGeometry(1.5, 4, 6),
+                new THREE.MeshStandardMaterial({ color: 0x051a05 })
+            );
+            leaves.position.y = 5;
+            
+            tree.add(trunk, leaves);
+            tree.position.set(x, 0, z);
+            scene.add(tree);
         }
 
-        // --- 4. PLAYER & GUN ---
-        const gunGroup = new THREE.Group();
-        const gunBody = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.2, 0.7), new THREE.MeshStandardMaterial({color: 0x000000}));
-        gunGroup.add(gunBody);
-        
-        const muzzleLight = new THREE.PointLight(0xffaa00, 0, 5);
-        muzzleLight.position.set(0, 0, -0.5);
-        gunGroup.add(muzzleLight);
+        for(let i=0; i<150; i++) {
+            createTree((Math.random()-0.5)*100, (Math.random()-0.5)*100);
+        }
 
-        gunGroup.position.set(0.4, -0.3, -0.6);
-        camera.add(gunGroup);
+        // --- 4. THE ENEMIES (Stalkers) ---
+        const enemies = [];
+        function spawnEnemy() {
+            const enemy = new THREE.Mesh(
+                new THREE.CapsuleGeometry(0.4, 0.8),
+                new THREE.MeshStandardMaterial({ color: 0x000000 }) // Black suits for stealth
+            );
+            enemy.position.set((Math.random()-0.5)*40, 0.8, (Math.random()-0.5)*40);
+            scene.add(enemy);
+            enemies.push(enemy);
+        }
+        for(let i=0; i<10; i++) spawnEnemy();
+
+        // --- 5. GUN & CONTROLS ---
+        const gun = new THREE.Mesh(
+            new THREE.BoxGeometry(0.1, 0.15, 0.7),
+            new THREE.MeshStandardMaterial({ color: 0x111111 })
+        );
+        gun.position.set(0.3, -0.3, -0.5);
+        camera.add(gun);
         scene.add(camera);
 
-        // --- 5. MOVEMENT LOGIC (FIXED) ---
         const controls = new PointerLockControls(camera, document.body);
-        document.getElementById('instructions').addEventListener('click', () => controls.lock());
-        controls.addEventListener('lock', () => document.getElementById('instructions').style.display = 'none');
-        controls.addEventListener('unlock', () => document.getElementById('instructions').style.display = 'flex');
+        document.body.addEventListener('click', () => controls.lock());
 
-        let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
-        const velocity = new THREE.Vector3();
-        const direction = new THREE.Vector3();
-
-        document.addEventListener('keydown', (e) => {
-            if(e.code === 'KeyW') moveForward = true;
-            if(e.code === 'KeyS') moveBackward = true;
-            if(e.code === 'KeyA') moveLeft = true;
-            if(e.code === 'KeyD') moveRight = true;
-        });
-        document.addEventListener('keyup', (e) => {
-            if(e.code === 'KeyW') moveForward = false;
-            if(e.code === 'KeyS') moveBackward = false;
-            if(e.code === 'KeyA') moveLeft = false;
-            if(e.code === 'KeyD') moveRight = false;
-        });
-
-        // --- 6. SHOOTING & FEEDBACK ---
+        // --- 6. SHOOTING ---
+        const raycaster = new THREE.Raycaster();
         window.addEventListener('mousedown', () => {
             if(!controls.isLocked) return;
+            
+            // Recoil
+            gun.position.z += 0.05;
+            setTimeout(() => gun.position.z -= 0.05, 50);
 
-            // Muzzle Flash
-            muzzleLight.intensity = 15;
-            gunGroup.position.z += 0.05; // Recoil
-
-            setTimeout(() => {
-                muzzleLight.intensity = 0;
-                gunGroup.position.z -= 0.05;
-            }, 50);
+            raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
+            const hits = raycaster.intersectObjects(enemies);
+            if(hits.length > 0) {
+                scene.remove(hits[0].object);
+                console.log("Stalker eliminated");
+            }
         });
 
-        // --- 7. ANIMATION LOOP ---
+        // --- 7. MOVEMENT & ANIMATION ---
+        let moveF = false, moveB = false, moveL = false, moveR = false;
+        document.onkeydown = (e) => {
+            if(e.code === 'KeyW') moveF = true;
+            if(e.code === 'KeyS') moveB = true;
+            if(e.code === 'KeyA') moveL = true;
+            if(e.code === 'KeyD') moveR = true;
+        };
+        document.onkeyup = (e) => {
+            if(e.code === 'KeyW') moveF = false;
+            if(e.code === 'KeyS') moveB = false;
+            if(e.code === 'KeyA') moveL = false;
+            if(e.code === 'KeyD') moveR = false;
+        };
+
+        const velocity = new THREE.Vector3();
         let prevTime = performance.now();
+
         function animate() {
             requestAnimationFrame(animate);
-
             const time = performance.now();
             const delta = (time - prevTime) / 1000;
 
-            if (controls.isLocked) {
-                // Smooth deceleration
-                velocity.x -= velocity.x * 10.0 * delta;
-                velocity.z -= velocity.z * 10.0 * delta;
-
-                direction.z = Number(moveForward) - Number(moveBackward);
-                direction.x = Number(moveRight) - Number(moveLeft);
-                direction.normalize();
-
-                if (moveForward || moveBackward) velocity.z -= direction.z * 150.0 * delta;
-                if (moveLeft || moveRight) velocity.x -= direction.x * 150.0 * delta;
-
-                controls.moveRight(-velocity.x * delta);
+            if(controls.isLocked) {
+                velocity.z -= velocity.z * 10 * delta;
+                velocity.x -= velocity.x * 10 * delta;
+                if(moveF) velocity.z -= 150 * delta;
+                if(moveB) velocity.z += 150 * delta;
+                if(moveL) velocity.x -= 150 * delta;
+                if(moveR) velocity.x += 150 * delta;
                 controls.moveForward(-velocity.z * delta);
-                
-                // Ground safety
-                camera.position.y = 1.6;
+                controls.moveRight(-velocity.x * delta);
             }
-
+            
             prevTime = time;
             renderer.render(scene, camera);
         }
         animate();
-
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
     </script>
 </body>
 </html>
