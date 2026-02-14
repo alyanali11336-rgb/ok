@@ -2,68 +2,49 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Frontline | Titan Apex Engine</title>
+    <title>Frontline | AAA Third Person</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #a3d2ff; font-family: 'Inter', sans-serif; }
+        body { margin: 0; overflow: hidden; background: #87ceeb; font-family: 'Inter', sans-serif; }
         
-        /* Tactical Minimap */
-        #minimap {
-            position: absolute; top: 20px; right: 20px; width: 150px; height: 150px;
-            background: rgba(0, 20, 0, 0.6); border: 2px solid rgba(255,255,255,0.5);
-            border-radius: 4px; backdrop-filter: blur(5px); overflow: hidden;
-        }
-        #player-dot { 
-            position: absolute; width: 6px; height: 6px; background: #fff; 
-            border-radius: 50%; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            box-shadow: 0 0 10px #fff;
-        }
-
-        /* AAA HUD */
-        #hud { position: absolute; bottom: 40px; left: 40px; color: white; pointer-events: none; }
-        #vitals { font-size: 10px; letter-spacing: 2px; opacity: 0.7; margin-bottom: 5px; }
-        #hp-container { width: 280px; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; }
-        #hp-fill { width: 100%; height: 100%; background: #fff; box-shadow: 0 0 20px rgba(255,255,255,0.5); transition: width 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28); }
-
-        /* Comms Icon */
+        /* HUD & UI */
+        #ui { position: absolute; inset: 0; pointer-events: none; color: white; }
         #comms {
-            position: absolute; top: 20px; left: 20px; display: flex; align-items: center;
-            background: rgba(0,0,0,0.4); padding: 10px 20px; border-radius: 50px;
-            color: white; font-size: 12px; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1);
+            position: absolute; top: 30px; left: 30px; background: rgba(0,0,0,0.7);
+            padding: 15px; border-radius: 4px; border-left: 4px solid #fff; width: 300px;
         }
-        #comms-pulse { width: 8px; height: 8px; background: #00ff00; border-radius: 50%; margin-right: 12px; animation: pulse 1.5s infinite; }
+        #hp-bar-wrap { position: absolute; bottom: 40px; left: 40px; width: 300px; height: 4px; background: rgba(0,0,0,0.3); }
+        #hp-bar-fill { width: 100%; height: 100%; background: #fff; box-shadow: 0 0 15px #fff; }
 
-        @keyframes pulse { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(1.2); } 100% { opacity: 1; transform: scale(1); } }
+        /* Key Guide */
+        #guide { position: absolute; bottom: 40px; right: 40px; text-align: right; font-size: 12px; opacity: 0.7; }
 
-        #crosshair { position: absolute; top: 50%; left: 50%; width: 20px; height: 20px; transform: translate(-50%, -50%); pointer-events: none; }
-        #crosshair:before, #crosshair:after { content: ''; position: absolute; background: white; opacity: 0.8; }
-        #crosshair:before { top: 50%; width: 100%; height: 1px; }
-        #crosshair:after { left: 50%; height: 100%; width: 1px; }
-
-        #overlay { position: absolute; inset: 0; background: #fff; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; transition: opacity 1s; }
-        button { padding: 20px 60px; background: #000; color: #fff; border: none; font-weight: 900; cursor: pointer; letter-spacing: 4px; font-size: 14px; }
+        #overlay { 
+            position: absolute; inset: 0; background: white; 
+            display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; 
+        }
+        button { padding: 20px 60px; background: #000; color: #fff; border: none; font-weight: 900; cursor: pointer; letter-spacing: 4px; }
     </style>
 </head>
 <body>
 
     <div id="overlay">
-        <h1 style="font-size: 5em; margin: 0; letter-spacing: -4px;">APEX</h1>
-        <p style="margin-bottom: 40px; opacity: 0.5;">ULTRA-HIGH DEFINITION TACTICAL SIMULATION</p>
-        <button onclick="controls.lock()">DEPLOY TO SECTOR</button>
+        <h1 style="font-size: 4em; letter-spacing: -2px;">PROJECT APEX</h1>
+        <p style="margin-bottom: 30px; opacity: 0.5;">THIRD-PERSON TACTICAL ENGINE</p>
+        <button onclick="controls.lock()">DEPLOY AGENT</button>
     </div>
 
-    <div id="comms">
-        <div id="comms-pulse"></div>
-        <span>HQ: "Maintain stealth. Sector is hot."</span>
+    <div id="ui">
+        <div id="comms">
+            <strong>HQ COMMS</strong><br>
+            "Visual markers active. Hostiles highlighted in red."
+        </div>
+        <div id="hp-bar-wrap"><div id="hp-bar-fill"></div></div>
+        <div id="guide">
+            [V] TOGGLE CAMERA<br>
+            [SHIFT] SPRINT (RUN)<br>
+            [C] CROUCH | [SPACE] JUMP
+        </div>
     </div>
-
-    <div id="minimap"><div id="player-dot"></div></div>
-
-    <div id="hud">
-        <div id="vitals">OPERATOR STATUS / 100%</div>
-        <div id="hp-container"><div id="hp-fill"></div></div>
-    </div>
-
-    <div id="crosshair"></div>
 
     <script type="importmap">
         {
@@ -78,147 +59,126 @@
         import * as THREE from 'three';
         import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 
-        // --- RENDERER CONFIG (AAA QUALITY) ---
+        // --- SCENE SETUP ---
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0xa3d2ff);
-        scene.fog = new THREE.FogExp2(0xa3d2ff, 0.012);
+        scene.background = new THREE.Color(0x87ceeb);
+        scene.fog = new THREE.FogExp2(0x87ceeb, 0.01);
 
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(window.devicePixelRatio);
-        renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        renderer.toneMappingExposure = 1.2;
+        renderer.shadowMap.enabled = true;
         document.body.appendChild(renderer.domElement);
 
         window.controls = new PointerLockControls(camera, document.body);
 
         // --- AAA LIGHTING ---
-        const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.2);
-        scene.add(hemiLight);
-
-        const sun = new THREE.DirectionalLight(0xffffff, 3.0);
-        sun.position.set(100, 200, 100);
+        scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+        const sun = new THREE.DirectionalLight(0xffffff, 2.5);
+        sun.position.set(50, 100, 50);
         sun.castShadow = true;
-        sun.shadow.camera.left = -100; sun.shadow.camera.right = 100;
-        sun.shadow.camera.top = 100; sun.shadow.camera.bottom = -100;
-        sun.shadow.mapSize.set(4096, 4096); // Ultra Shadow Resolution
         scene.add(sun);
 
-        // --- MAP & GROUND ---
-        const groundGeo = new THREE.PlaneGeometry(1000, 1000);
-        const groundMat = new THREE.MeshStandardMaterial({ 
-            color: 0x3a4d23, 
-            roughness: 0.9,
-            metalness: 0.1
-        });
-        const ground = new THREE.Mesh(groundGeo, groundMat);
-        ground.rotation.x = -Math.PI / 2;
+        // --- PLAYER CHARACTER (Third Person Model) ---
+        const playerModel = new THREE.Group();
+        const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.4, 1), new THREE.MeshStandardMaterial({color: 0x222222}));
+        body.position.y = 0.9;
+        const backpack = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.6, 0.3), new THREE.MeshStandardMaterial({color: 0x111111}));
+        backpack.position.set(0, 1, -0.2);
+        playerModel.add(body, backpack);
+        
+        // Gun for player model
+        const pGun = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.7), new THREE.MeshStandardMaterial({color: 0x000000}));
+        pGun.position.set(0.4, 1.1, 0.3);
+        playerModel.add(pGun);
+        scene.add(playerModel);
+
+        // --- WORLD ---
+        const ground = new THREE.Mesh(new THREE.PlaneGeometry(500, 500), new THREE.MeshStandardMaterial({color: 0x3a4d23}));
+        ground.rotation.x = -Math.PI/2;
         ground.receiveShadow = true;
         scene.add(ground);
 
-        // Procedural Grass Tufts
-        const grassGeo = new THREE.PlaneGeometry(0.2, 0.4);
-        const grassMat = new THREE.MeshStandardMaterial({ color: 0x4d5d30, side: THREE.DoubleSide, alphaTest: 0.5 });
-        for(let i=0; i<2000; i++) {
-            const grass = new THREE.Mesh(grassGeo, grassMat);
-            grass.position.set((Math.random()-0.5)*150, 0.2, (Math.random()-0.5)*150);
-            grass.rotation.y = Math.random() * Math.PI;
-            scene.add(grass);
-        }
-
-        // --- HIGH-POLY HOUSES & TREES ---
-        function createHouse(x, z) {
-            const house = new THREE.Group();
-            const frame = new THREE.Mesh(new THREE.BoxGeometry(10, 6, 12), new THREE.MeshStandardMaterial({color: 0xeeeeee}));
-            const roof = new THREE.Mesh(new THREE.BoxGeometry(11, 1, 13), new THREE.MeshStandardMaterial({color: 0x222222}));
-            roof.position.y = 3.5;
-            house.add(frame, roof);
-            house.position.set(x, 3, z);
-            house.castShadow = house.receiveShadow = true;
-            scene.add(house);
-        }
-        createHouse(30, -40); createHouse(-50, 20);
-
-        for(let i=0; i<150; i++) {
-            const tree = new THREE.Group();
-            const t = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.5, 8), new THREE.MeshStandardMaterial({color: 0x2b1d0e}));
-            const l = new THREE.Mesh(new THREE.SphereGeometry(3.5, 8, 8), new THREE.MeshStandardMaterial({color: 0x1e2d12}));
-            l.position.y = 6;
-            tree.add(t, l);
-            tree.position.set((Math.random()-0.5)*300, 0, (Math.random()-0.5)*300);
-            tree.castShadow = true;
+        for(let i=0; i<80; i++) {
+            const tree = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.4, 7), new THREE.MeshStandardMaterial({color: 0x2b1d0e}));
+            tree.position.set((Math.random()-0.5)*200, 3.5, (Math.random()-0.5)*200);
             scene.add(tree);
         }
 
-        // --- WEAPONRY (PBR) ---
-        const gun = new THREE.Group();
-        const body = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.2, 0.8), new THREE.MeshStandardMaterial({color: 0x050505, roughness: 0.2}));
-        const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.7), new THREE.MeshStandardMaterial({color: 0x000000, metalness: 0.8}));
-        barrel.rotation.x = Math.PI/2; barrel.position.z = -0.6;
-        gun.add(body, barrel);
-        gun.position.set(0.4, -0.4, -0.7);
-        camera.add(gun);
-        scene.add(camera);
+        // --- ENEMIES (High Visibility) ---
+        const enemies = [];
+        function spawnEnemy() {
+            const e = new THREE.Group();
+            // Bright red mesh so you can actually see them!
+            const eBody = new THREE.Mesh(new THREE.CapsuleGeometry(0.4, 1.2), new THREE.MeshStandardMaterial({color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 0.2}));
+            eBody.position.y = 1;
+            e.add(eBody);
+            e.position.set((Math.random()-0.5)*150, 0, (Math.random()-0.5)*150);
+            scene.add(e);
+            enemies.push(e);
+        }
+        for(let i=0; i<10; i++) spawnEnemy();
 
-        // --- PLAYER MECHANICS ---
-        let vel = new THREE.Vector3(), input = {};
-        let isGrounded = true, isCrouching = false;
+        // --- LOGIC ---
+        let isThirdPerson = true;
+        let isRunning = false;
+        let isCrouching = false;
+        const keys = {};
 
-        document.addEventListener('keydown', (e) => {
-            input[e.code] = true;
-            if(e.code === 'Space' && isGrounded) { vel.y = 6; isGrounded = false; }
-            if(e.code === 'KeyC') isCrouching = true;
+        window.addEventListener('keydown', (e) => {
+            keys[e.code] = true;
+            if(e.code === 'KeyV') isThirdPerson = !isThirdPerson;
         });
-        document.addEventListener('keyup', (e) => {
-            input[e.code] = false;
-            if(e.code === 'KeyC') isCrouching = false;
-        });
+        window.addEventListener('keyup', (e) => keys[e.code] = false);
 
-        // --- RENDER LOOP ---
-        function update() {
-            requestAnimationFrame(update);
+        function animate() {
+            requestAnimationFrame(animate);
             if(controls.isLocked) {
-                // Gravity & Jump
-                vel.y -= 0.22;
-                camera.position.y += vel.y * 0.016;
+                isRunning = keys['ShiftLeft'];
+                isCrouching = keys['KeyC'];
 
-                const limit = isCrouching ? 0.8 : 1.7;
-                if(camera.position.y < limit) {
-                    camera.position.y = limit;
-                    vel.y = 0;
-                    isGrounded = true;
+                let speed = isRunning ? 0.35 : 0.15;
+                if(isCrouching) speed = 0.07;
+
+                // Move
+                if(keys['KeyW']) controls.moveForward(speed);
+                if(keys['KeyS']) controls.moveForward(-speed);
+                if(keys['KeyA']) controls.moveRight(-speed);
+                if(keys['KeyD']) controls.moveRight(speed);
+
+                // AAA FOV Dynamic stretching when running
+                const targetFOV = isRunning ? 85 : 75;
+                camera.fov += (targetFOV - camera.fov) * 0.1;
+                camera.updateProjectionMatrix();
+
+                // Third Person Camera Logic
+                playerModel.position.copy(camera.position);
+                playerModel.position.y -= 1.6;
+                playerModel.rotation.y = camera.rotation.y;
+
+                if(isThirdPerson) {
+                    const offset = new THREE.Vector3(0.8, 0.5, 3).applyQuaternion(camera.quaternion);
+                    camera.position.add(offset);
+                    playerModel.visible = true;
+                } else {
+                    playerModel.visible = false;
                 }
 
-                // Smooth Movement
-                let spd = (input['ShiftLeft'] ? 0.3 : 0.15) * (isCrouching ? 0.5 : 1);
-                if(input['KeyW']) controls.moveForward(spd);
-                if(input['KeyS']) controls.moveForward(-spd);
-                if(input['KeyA']) controls.moveRight(-spd);
-                if(input['KeyD']) controls.moveRight(spd);
-
-                // Gun Sway & Breathing
-                const t = Date.now() * 0.003;
-                gun.position.y = -0.4 + Math.sin(t) * 0.01;
-                gun.position.x = 0.4 + Math.cos(t * 0.5) * 0.005;
-
-                // Update Minimap (Rotate map relative to player)
-                // Simplified here: map stays static, but you could rotate the dot
+                // Enemy "Always See" Logic
+                enemies.forEach(en => {
+                    en.lookAt(camera.position);
+                    if(en.position.distanceTo(camera.position) < 40) {
+                        en.translateZ(0.05);
+                    }
+                });
             }
             renderer.render(scene, camera);
         }
-        update();
+        animate();
 
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
-
-        controls.addEventListener('lock', () => document.getElementById('overlay').style.opacity = '0');
-        controls.addEventListener('unlock', () => document.getElementById('overlay').style.opacity = '1');
+        controls.addEventListener('lock', () => document.getElementById('overlay').style.display='none');
+        controls.addEventListener('unlock', () => document.getElementById('overlay').style.display='flex');
     </script>
 </body>
 </html>
