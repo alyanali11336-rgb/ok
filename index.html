@@ -2,36 +2,57 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Frontline | Tactical Forest</title>
+    <title>Frontline | Forest Day</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #01050a; font-family: 'Segoe UI', sans-serif; }
+        body { margin: 0; overflow: hidden; background: #87CEEB; font-family: 'Segoe UI', sans-serif; }
+        
+        /* UI Elements */
         #crosshair {
-            position: absolute; top: 50%; left: 50%; width: 12px; height: 12px;
-            border: 2px solid rgba(0, 255, 0, 0.6); border-radius: 50%;
+            position: absolute; top: 50%; left: 50%; width: 14px; height: 14px;
+            border: 2px solid #fff; border-radius: 50%;
             transform: translate(-50%, -50%); pointer-events: none;
         }
-        #ui { position: absolute; bottom: 30px; left: 30px; color: #fff; }
-        #weapon-info { position: absolute; bottom: 30px; right: 30px; color: #00ff00; text-align: right; font-weight: bold; }
-        #instructions { 
-            position: absolute; width: 100%; height: 100%; background: rgba(0,0,0,0.8);
-            display: flex; flex-direction: column; justify-content: center; align-items: center; 
-            color: white; z-index: 10; text-align: center;
+
+        /* Minecraft Style Hotbar */
+        #hotbar {
+            position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+            display: flex; gap: 5px; background: rgba(0,0,0,0.5); padding: 5px; border: 2px solid #333;
         }
-        .key-hint { color: #ffaa00; font-weight: bold; }
+        .slot {
+            width: 50px; height: 50px; border: 2px solid #888; 
+            display: flex; justify-content: center; align-items: center; color: white; font-size: 10px;
+        }
+        .active { border-color: #fff; background: rgba(255,255,255,0.2); }
+
+        /* Health Bar */
+        #health-container {
+            position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%);
+            width: 200px; height: 15px; background: #333; border: 2px solid #fff;
+        }
+        #health-bar { width: 100%; height: 100%; background: #ff3333; transition: width 0.2s; }
+
+        #instructions { 
+            position: absolute; width: 100%; height: 100%; background: white;
+            display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10;
+        }
     </style>
 </head>
 <body>
 
     <div id="instructions">
-        <h1>FOREST SECTOR: OVERCAST</h1>
-        <p>Press <span class="key-hint">1</span> for Rifle | <span class="key-hint">2</span> for Pistol</p>
-        <p>Press <span class="key-hint">F</span> to toggle Torch</p>
-        <button onclick="this.parentElement.style.display='none'" style="padding: 10px 30px; cursor:pointer;">START MISSION</button>
+        <h1>FOREST PATROL</h1>
+        <p>Use <span style="color:red">1</span> for Gun | <span style="color:red">2</span> for Torch</p>
+        <button onclick="this.parentElement.style.display='none'" style="padding: 10px 20px; cursor:pointer;">START GAME</button>
     </div>
 
     <div id="crosshair"></div>
-    <div id="ui">HEALTH: 100% | SECTOR: NORTH FOREST</div>
-    <div id="weapon-info">EQUIPPED: <span id="gun-name">RIFLE</span></div>
+    
+    <div id="health-container"><div id="health-bar"></div></div>
+
+    <div id="hotbar">
+        <div id="slot-1" class="slot active">GUN [1]</div>
+        <div id="slot-2" class="slot">TORCH [2]</div>
+    </div>
 
     <script type="importmap">
         {
@@ -46,10 +67,10 @@
         import * as THREE from 'three';
         import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 
-        // --- 1. MOONLIT ENVIRONMENT ---
+        // --- 1. LIGHT SCENE ---
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x020408);
-        scene.fog = new THREE.Fog(0x020408, 5, 60);
+        scene.background = new THREE.Color(0xa3d2ff); 
+        scene.fog = new THREE.Fog(0xa3d2ff, 10, 70);
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -57,133 +78,142 @@
         renderer.shadowMap.enabled = true;
         document.body.appendChild(renderer.domElement);
 
-        // Moonlight (Ambient and Directional)
-        const moonLight = new THREE.DirectionalLight(0x4444ff, 0.4);
-        moonLight.position.set(10, 20, 10);
-        scene.add(moonLight);
-        scene.add(new THREE.AmbientLight(0x222244, 0.3));
+        const sun = new THREE.DirectionalLight(0xffffff, 1.5);
+        sun.position.set(10, 50, 10);
+        scene.add(sun);
+        scene.add(new THREE.AmbientLight(0xffffff, 0.4));
 
-        // --- 2. TORCH SYSTEM ---
-        const torch = new THREE.SpotLight(0xffffff, 0); // Start off
-        torch.angle = Math.PI / 7;
-        torch.penumbra = 0.2;
-        torch.distance = 45;
-        camera.add(torch);
-        camera.add(torch.target);
-        torch.target.position.set(0, 0, -1);
-        scene.add(camera);
-
-        let torchOn = false;
-
-        // --- 3. GRASS GROUND & TREES ---
-        const loader = new THREE.TextureLoader();
-        const grassTex = loader.load('https://threejs.org/examples/textures/terrain/grasslight-big.jpg');
-        grassTex.wrapS = grassTex.wrapT = THREE.RepeatWrapping;
-        grassTex.repeat.set(50, 50);
-
+        // --- 2. GROUND & TREES ---
         const floor = new THREE.Mesh(
             new THREE.PlaneGeometry(200, 200),
-            new THREE.MeshStandardMaterial({ map: grassTex })
+            new THREE.MeshStandardMaterial({ color: 0x4e7a3d }) // Grass color
         );
         floor.rotation.x = -Math.PI/2;
         scene.add(floor);
 
-        // Simple Trees
-        const trees = [];
-        for(let i=0; i<100; i++) {
+        for(let i=0; i<80; i++) {
             const tree = new THREE.Group();
-            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 3), new THREE.MeshStandardMaterial({color: 0x221100}));
-            const leaves = new THREE.Mesh(new THREE.SphereGeometry(1.5), new THREE.MeshStandardMaterial({color: 0x0a220a}));
-            leaves.position.y = 2.5;
+            const trunk = new THREE.Mesh(new THREE.BoxGeometry(0.4, 4, 0.4), new THREE.MeshStandardMaterial({color: 0x4d2902}));
+            const leaves = new THREE.Mesh(new THREE.ConeGeometry(2, 5, 8), new THREE.MeshStandardMaterial({color: 0x2d4c1e}));
+            leaves.position.y = 4;
             tree.add(trunk, leaves);
-            tree.position.set((Math.random()-0.5)*100, 1.5, (Math.random()-0.5)*100);
+            tree.position.set((Math.random()-0.5)*120, 0, (Math.random()-0.5)*120);
             scene.add(tree);
-            trees.push(tree);
         }
 
-        // --- 4. ENEMIES ---
+        // --- 3. HUMAN-LIKE ENEMIES ---
         const enemies = [];
-        function createEnemy() {
-            const enemy = new THREE.Mesh(new THREE.CapsuleGeometry(0.4, 1), new THREE.MeshStandardMaterial({color: 0x330000}));
-            enemy.position.set((Math.random()-0.5)*80, 1, (Math.random()-0.5)*80);
-            scene.add(enemy);
-            enemies.push(enemy);
+        function createHumanEnemy() {
+            const group = new THREE.Group();
+            const mat = new THREE.MeshStandardMaterial({color: 0x333333});
+            
+            const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1, 0.4), mat); // Torso
+            body.position.y = 1.2;
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), new THREE.MeshStandardMaterial({color: 0xffdbac})); // Head
+            head.position.y = 2;
+            const lLeg = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.7, 0.2), mat);
+            lLeg.position.set(-0.15, 0.35, 0);
+            const rLeg = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.7, 0.2), mat);
+            rLeg.position.set(0.15, 0.35, 0);
+
+            group.add(body, head, lLeg, rLeg);
+            group.position.set((Math.random()-0.5)*60, 0, (Math.random()-0.5)*60);
+            scene.add(group);
+            enemies.push(group);
         }
-        for(let i=0; i<15; i++) createEnemy();
+        for(let i=0; i<10; i++) createHumanEnemy();
 
-        // --- 5. WEAPON SWITCHING ---
-        const rifle = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.2, 1), new THREE.MeshStandardMaterial({color: 0x111111}));
-        rifle.position.set(0.3, -0.3, -0.6);
+        // --- 4. ITEMS (Gun & Torch) ---
+        const gun = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.2, 0.8), new THREE.MeshStandardMaterial({color: 0x222222}));
+        gun.position.set(0.3, -0.3, -0.6);
         
-        const pistol = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.15, 0.4), new THREE.MeshStandardMaterial({color: 0x333333}));
-        pistol.position.set(0.3, -0.25, -0.4);
-        pistol.visible = false;
+        const torchBody = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.4), new THREE.MeshStandardMaterial({color: 0x555555}));
+        torchBody.rotation.x = Math.PI/2;
+        torchBody.position.set(0.3, -0.3, -0.4);
+        torchBody.visible = false;
 
-        camera.add(rifle, pistol);
+        const torchLight = new THREE.SpotLight(0xffffff, 0, 40, Math.PI/6);
+        torchLight.position.set(0.3, -0.3, -0.4);
+        
+        camera.add(gun, torchBody, torchLight, torchLight.target);
+        torchLight.target.position.set(0.3, -0.3, -1);
+        scene.add(camera);
 
-        // --- 6. CONTROLS & INPUT ---
-        const controls = new PointerLockControls(camera, document.body);
-        document.body.addEventListener('click', () => controls.lock());
+        // --- 5. SWITCHING LOGIC ---
+        let currentItem = 'gun';
+        let health = 100;
 
         window.addEventListener('keydown', (e) => {
             if(e.key === '1') {
-                rifle.visible = true; pistol.visible = false;
-                document.getElementById('gun-name').innerText = "RIFLE";
+                currentItem = 'gun';
+                gun.visible = true; torchBody.visible = false; torchLight.intensity = 0;
+                document.getElementById('slot-1').classList.add('active');
+                document.getElementById('slot-2').classList.remove('active');
             }
             if(e.key === '2') {
-                rifle.visible = false; pistol.visible = true;
-                document.getElementById('gun-name').innerText = "PISTOL";
-            }
-            if(e.key.toLowerCase() === 'f') {
-                torchOn = !torchOn;
-                torch.intensity = torchOn ? 100 : 0;
+                currentItem = 'torch';
+                gun.visible = false; torchBody.visible = true; torchLight.intensity = 50;
+                document.getElementById('slot-2').classList.add('active');
+                document.getElementById('slot-1').classList.remove('active');
             }
         });
 
-        // --- 7. SHOOTING & ANIMATION ---
-        const raycaster = new THREE.Raycaster();
+        // --- 6. CONTROLS & COMBAT ---
+        const controls = new PointerLockControls(camera, document.body);
+        document.body.addEventListener('click', () => controls.lock());
+
         window.addEventListener('mousedown', () => {
-            if(!controls.isLocked) return;
-            raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
-            const hits = raycaster.intersectObjects(enemies);
+            if(!controls.isLocked || currentItem !== 'gun') return;
+            
+            // Recoil
+            gun.position.z += 0.1;
+            setTimeout(() => gun.position.z -= 0.1, 50);
+
+            const ray = new THREE.Raycaster();
+            ray.setFromCamera(new THREE.Vector2(0,0), camera);
+            const hits = ray.intersectObjects(enemies, true);
             if(hits.length > 0) {
-                scene.remove(hits[0].object);
+                let hitEnemy = hits[0].object;
+                while(hitEnemy.parent !== scene) hitEnemy = hitEnemy.parent;
+                scene.remove(hitEnemy);
+                enemies.splice(enemies.indexOf(hitEnemy), 1);
             }
         });
 
-        const moveState = { f: false, b: false, l: false, r: false };
-        document.onkeydown = (e) => { 
-            if(e.code === 'KeyW') moveState.f = true; 
-            if(e.code === 'KeyS') moveState.b = true;
-            if(e.code === 'KeyA') moveState.l = true;
-            if(e.code === 'KeyD') moveState.r = true;
-        };
-        document.onkeyup = (e) => { 
-            if(e.code === 'KeyW') moveState.f = false; 
-            if(e.code === 'KeyS') moveState.b = false;
-            if(e.code === 'KeyA') moveState.l = false;
-            if(e.code === 'KeyD') moveState.r = false;
-        };
-
+        // --- 7. GAME LOOP ---
         const velocity = new THREE.Vector3();
-        let prevTime = performance.now();
+        let move = { f: false, b: false, l: false, r: false };
+        document.onkeydown = (e) => {
+            if(e.code === 'KeyW') move.f = true; if(e.code === 'KeyS') move.b = true;
+            if(e.code === 'KeyA') move.l = true; if(e.code === 'KeyD') move.r = true;
+        };
+        document.onkeyup = (e) => {
+            if(e.code === 'KeyW') move.f = false; if(e.code === 'KeyS') move.b = false;
+            if(e.code === 'KeyA') move.l = false; if(e.code === 'KeyD') move.r = false;
+        };
 
         function animate() {
             requestAnimationFrame(animate);
-            const time = performance.now();
-            const delta = (time - prevTime) / 1000;
+            const delta = 0.016;
 
             if(controls.isLocked) {
-                velocity.z -= velocity.z * 10 * delta;
-                velocity.x -= velocity.x * 10 * delta;
-                if(moveState.f) velocity.z -= 180 * delta;
-                if(moveState.b) velocity.z += 180 * delta;
-                if(moveState.l) velocity.x -= 180 * delta;
-                if(moveState.r) velocity.x += 180 * delta;
-                controls.moveForward(-velocity.z * delta);
-                controls.moveRight(-velocity.x * delta);
+                if(move.f) controls.moveForward(0.15);
+                if(move.b) controls.moveForward(-0.15);
+                if(move.l) controls.moveRight(-0.1);
+                if(move.r) controls.moveRight(0.1);
+
+                // Enemy AI: Move toward player
+                enemies.forEach(en => {
+                    en.lookAt(camera.position.x, 0, camera.position.z);
+                    const dist = en.position.distanceTo(camera.position);
+                    if(dist < 30 && dist > 1.5) {
+                        en.translateZ(0.04);
+                    } else if (dist <= 1.5) {
+                        health -= 0.2; // Take damage
+                        document.getElementById('health-bar').style.width = health + "%";
+                    }
+                });
             }
-            prevTime = time;
             renderer.render(scene, camera);
         }
         animate();
