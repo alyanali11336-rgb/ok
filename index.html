@@ -2,219 +2,185 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>VANGUARD 2D | TACTICAL DROP</title>
+    <title>VANGUARD | PSEUDO-3D OPS</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@800&family=Rajdhani:wght@600&display=swap" rel="stylesheet">
     <style>
-        body, html { margin: 0; padding: 0; overflow: hidden; background: #2c3e50; font-family: 'Rajdhani', sans-serif; }
-        canvas { display: block; cursor: crosshair; }
+        body, html { margin: 0; padding: 0; overflow: hidden; background: #1a1a1a; font-family: 'Rajdhani', sans-serif; }
+        canvas { display: block; }
         
-        #ui { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
-        #vignette { position: absolute; inset: 0; background: radial-gradient(circle, transparent 30%, rgba(0,0,0,0.6) 100%); }
+        #ui { position: fixed; inset: 0; pointer-events: none; z-index: 100; }
+        #hud { position: absolute; bottom: 40px; left: 40px; color: #fff; text-shadow: 2px 2px #000; }
+        .hp-bar { width: 250px; height: 10px; background: rgba(255,255,255,0.1); border: 2px solid #fff; margin-top: 5px; }
+        #hp-fill { width: 100%; height: 100%; background: #00ffcc; transition: 0.3s; box-shadow: 0 0 15px #00ffcc; }
         
-        #hud { position: absolute; bottom: 30px; left: 30px; color: #fff; }
-        .bar { width: 250px; height: 8px; background: rgba(255,255,255,0.1); border: 1px solid #fff; margin-top: 5px; }
-        #hp-fill { width: 100%; height: 100%; background: #2ecc71; transition: 0.3s; }
-        
-        #altimeter { position: absolute; top: 30px; right: 30px; text-align: right; color: #f1c40f; font-family: 'Orbitron'; }
-        #msg { position: absolute; top: 50%; width: 100%; text-align: center; color: #fff; font-family: 'Orbitron'; font-size: 2rem; opacity: 0; transition: 0.5s; }
+        #altimeter { position: absolute; top: 40px; right: 40px; font-family: 'Orbitron'; color: #00ffcc; text-align: right; }
+        #warning { position: absolute; top: 20%; width: 100%; text-align: center; color: #ff0000; font-family: 'Orbitron'; font-size: 1.5rem; display: none; animation: flash 0.5s infinite; }
+        @keyframes flash { 0% { opacity: 1; } 50% { opacity: 0; } }
     </style>
 </head>
 <body>
 
     <div id="ui">
-        <div id="vignette"></div>
-        <div id="msg">READY TO DEPLOY</div>
-        <div id="altimeter">ALTITUDE: <span id="alt-val">100</span>m</div>
+        <div id="warning">BEING CHASED - CRITICAL</div>
+        <div id="altimeter">DEPLOYMENT ALT<br><span id="alt-val" style="font-size: 2rem;">1000</span>FT</div>
         <div id="hud">
-            HEALTH
-            <div class="bar"><div id="hp-fill"></div></div>
-            <div id="status" style="font-size: 0.8rem; margin-top: 5px; letter-spacing: 2px;">STATUS: DESCENDING</div>
+            VANGUARD OPERATOR
+            <div class="hp-bar"><div id="hp-fill"></div></div>
         </div>
     </div>
 
-    <canvas id="gameCanvas"></canvas>
+    <canvas id="game"></canvas>
 
     <script>
-        const canvas = document.getElementById('gameCanvas');
+        const canvas = document.getElementById('game');
         const ctx = canvas.getContext('2d');
 
-        let width, height;
+        let w, h;
+        let alt = 1000;
         let isLanded = false;
-        let altitude = 100;
-        let player = { x: 0, y: 0, angle: 0, hp: 100, size: 20 };
-        let enemy = { x: 500, y: 500, angle: 0, hp: 100, state: 'stalk' };
-        let bullets = [], enemyBullets = [], trees = [], boxes = [];
-        const keys = {};
+        let player = { x: 0, y: 0, hp: 100, targetX: 0, targetY: 0 };
+        let enemy = { x: 400, y: -400, hp: 100, angle: 0 };
+        let bullets = [], enemyBullets = [], trees = [];
 
         function init() {
             resize();
-            player.x = width / 2;
-            player.y = height / 2;
-
-            // Generate Map
-            for(let i=0; i<15; i++) {
-                trees.push({ x: Math.random()*width, y: Math.random()*height, r: 30 + Math.random()*20 });
+            player.x = w/2; player.y = h/2;
+            for(let i=0; i<20; i++) {
+                trees.push({ 
+                    x: (Math.random() - 0.5) * 2000, 
+                    y: (Math.random() - 0.5) * 2000, 
+                    size: 40 + Math.random() * 40 
+                });
             }
-            for(let i=0; i<5; i++) {
-                boxes.push({ x: Math.random()*width, y: Math.random()*height, w: 40, h: 40 });
-            }
-
-            window.addEventListener('resize', resize);
-            window.addEventListener('keydown', e => keys[e.code] = true);
-            window.addEventListener('keyup', e => keys[e.code] = false);
-            window.addEventListener('mousemove', e => {
-                player.angle = Math.atan2(e.clientY - player.y, e.clientX - player.x);
-            });
-            window.addEventListener('mousedown', shoot);
-
             loop();
         }
 
         function resize() {
-            width = canvas.width = window.innerWidth;
-            height = canvas.height = window.innerHeight;
+            w = canvas.width = window.innerWidth;
+            h = canvas.height = window.innerHeight;
         }
+
+        window.onresize = resize;
+        window.onkeydown = e => keys[e.code] = true;
+        window.onkeyup = e => keys[e.code] = false;
+        window.onmousedown = () => { if(isLanded) shoot(); };
+        const keys = {};
 
         function shoot() {
-            if(!isLanded) return;
-            bullets.push({ 
-                x: player.x + Math.cos(player.angle)*20, 
-                y: player.y + Math.sin(player.angle)*20, 
-                vx: Math.cos(player.angle)*10, 
-                vy: Math.sin(player.angle)*10 
-            });
+            let angle = Math.atan2(mouse.y - h/2, mouse.x - w/2);
+            bullets.push({ x: player.x, y: player.y, vx: Math.cos(angle)*15, vy: Math.sin(angle)*15 });
         }
 
-        function drawPlayer() {
-            ctx.save();
-            ctx.translate(player.x, player.y);
-            
-            // Drop Scale (Parachute effect)
-            let scale = isLanded ? 1 : 1 + (altitude / 20);
-            ctx.scale(scale, scale);
+        let mouse = { x: 0, y: 0 };
+        window.onmousemove = e => { mouse.x = e.clientX; mouse.y = e.clientY; };
 
-            if(!isLanded) {
-                // Draw Parachute
-                ctx.fillStyle = "rgba(211, 84, 0, 0.8)";
+        function drawEntity(x, y, type, scale, shadow = true) {
+            let screenX = w/2 + (x - player.x) * scale;
+            let screenY = h/2 + (y - player.y) * scale;
+            let sSize = 50 * scale;
+
+            if(shadow) {
+                ctx.fillStyle = "rgba(0,0,0,0.3)";
                 ctx.beginPath();
-                ctx.arc(0, -30, 40, Math.PI, 0);
+                ctx.ellipse(screenX + 10*scale, screenY + 20*scale, sSize/2, sSize/4, 0, 0, Math.PI*2);
                 ctx.fill();
             }
 
-            // Human Body (Top Down)
-            ctx.rotate(player.angle);
-            // Shoulders
-            ctx.fillStyle = "#2c3e50";
-            ctx.fillRect(-10, -15, 20, 30);
-            // Head
-            ctx.fillStyle = "#f39c12";
-            ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI*2); ctx.fill();
-            // Gun
-            if(isLanded) {
-                ctx.fillStyle = "#000";
-                ctx.fillRect(10, 8, 25, 5);
-            }
-            
-            ctx.restore();
-        }
-
-        function drawEnemy() {
-            if(!isLanded) return;
-            ctx.save();
-            ctx.translate(enemy.x, enemy.y);
-            ctx.rotate(enemy.angle);
-            
-            // Enemy Body
-            ctx.fillStyle = "#c0392b";
-            ctx.fillRect(-10, -15, 20, 30);
-            ctx.fillStyle = "#111";
-            ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI*2); ctx.fill();
-            // Enemy Gun
-            ctx.fillRect(10, 8, 20, 4);
-            ctx.restore();
-        }
-
-        function updateAI() {
-            if(!isLanded) return;
-            let dx = player.x - enemy.x;
-            let dy = player.y - enemy.y;
-            let dist = Math.sqrt(dx*dx + dy*dy);
-            enemy.angle = Math.atan2(dy, dx);
-
-            // Chase logic
-            let speed = player.hp < 40 ? 2.5 : 1.2;
-            if(dist > 100) {
-                enemy.x += Math.cos(enemy.angle) * speed;
-                enemy.y += Math.sin(enemy.angle) * speed;
-            }
-
-            // Shoot
-            if(dist < 400 && Math.random() < 0.02) {
-                enemyBullets.push({ x: enemy.x, y: enemy.y, vx: Math.cos(enemy.angle)*7, vy: Math.sin(enemy.angle)*7 });
+            if(type === 'tree') {
+                ctx.fillStyle = "#2d5a27";
+                ctx.beginPath();
+                ctx.moveTo(screenX, screenY - sSize*2);
+                ctx.lineTo(screenX - sSize, screenY);
+                ctx.lineTo(screenX + sSize, screenY);
+                ctx.fill();
+            } else if(type === 'enemy') {
+                ctx.fillStyle = "#ff3333";
+                ctx.fillRect(screenX - sSize/4, screenY - sSize, sSize/2, sSize);
+                ctx.fillStyle = "#000"; // Head
+                ctx.beginPath(); ctx.arc(screenX, screenY - sSize, sSize/4, 0, Math.PI*2); ctx.fill();
             }
         }
 
         function loop() {
-            // Background
-            ctx.fillStyle = "#3d4e3d";
-            ctx.fillRect(0, 0, width, height);
+            ctx.fillStyle = "#3d4e3d"; // Grass
+            ctx.fillRect(0,0,w,h);
 
-            // Draw Map Elements
-            trees.forEach(t => {
-                ctx.fillStyle = "#1e3d1e";
-                ctx.beginPath(); ctx.arc(t.x, t.y, t.r, 0, Math.PI*2); ctx.fill();
-            });
-            boxes.forEach(b => {
-                ctx.fillStyle = "#5c4033";
-                ctx.fillRect(b.x, b.y, b.w, b.h);
-            });
+            // Parallax Scale factor
+            let viewScale = isLanded ? 1 : 0.2 + ( (1000 - alt) / 1000) * 0.8;
 
             if(!isLanded) {
-                altitude -= 0.5;
-                document.getElementById('alt-val').innerText = Math.max(0, altitude).toFixed(0);
-                if(altitude <= 0) {
-                    isLanded = true;
-                    document.getElementById('status').innerText = "STATUS: ENGAGED";
-                }
-                // Air Drift
-                if(keys['KeyW']) player.y -= 3;
-                if(keys['KeyS']) player.y += 3;
-                if(keys['KeyA']) player.x -= 3;
-                if(keys['KeyD']) player.x += 3;
+                alt -= 4;
+                document.getElementById('alt-val').innerText = Math.max(0, alt);
+                if(alt <= 0) isLanded = true;
+                if(keys['KeyW']) player.y -= 5;
+                if(keys['KeyS']) player.y += 5;
+                if(keys['KeyA']) player.x -= 5;
+                if(keys['KeyD']) player.x += 5;
+                
+                // Draw Parachute Shadow
+                ctx.fillStyle = "rgba(0,0,0,0.1)";
+                ctx.beginPath();
+                ctx.arc(w/2, h/2, 50 * viewScale, 0, Math.PI*2);
+                ctx.fill();
             } else {
-                // Move Player
-                if(keys['KeyW']) player.y -= 3;
-                if(keys['KeyS']) player.y += 3;
-                if(keys['KeyA']) player.x -= 3;
-                if(keys['KeyD']) player.x += 3;
-                updateAI();
+                if(keys['KeyW']) player.y -= 4;
+                if(keys['KeyS']) player.y += 4;
+                if(keys['KeyA']) player.x -= 4;
+                if(keys['KeyD']) player.x += 4;
+
+                // Enemy AI: Chase if player health low
+                let dx = player.x - enemy.x;
+                let dy = player.y - enemy.y;
+                let dist = Math.sqrt(dx*dx + dy*dy);
+                let speed = player.hp < 50 ? 3.5 : 1.5;
+                
+                if(player.hp < 50) document.getElementById('warning').style.display = "block";
+
+                enemy.x += (dx/dist) * speed;
+                enemy.y += (dy/dist) * speed;
+
+                if(dist < 300 && Math.random() < 0.02) {
+                    enemyBullets.push({ x: enemy.x, y: enemy.y, vx: (dx/dist)*8, vy: (dy/dist)*8 });
+                }
             }
 
-            // Projectiles
+            // Draw World
+            trees.forEach(t => drawEntity(t.x, t.y, 'tree', viewScale));
+            drawEntity(enemy.x, enemy.y, 'enemy', viewScale);
+
+            // Draw Bullets
             bullets.forEach((b, i) => {
                 b.x += b.vx; b.y += b.vy;
-                ctx.fillStyle = "#f1c40f";
-                ctx.beginPath(); ctx.arc(b.x, b.y, 3, 0, Math.PI*2); ctx.fill();
-                if(Math.hypot(b.x-enemy.x, b.y-enemy.y) < 20) {
-                    enemy.hp -= 20; bullets.splice(i, 1);
-                    if(enemy.hp <= 0) { enemy.x = -1000; } // Kill enemy
-                }
+                let sx = w/2 + (b.x - player.x) * viewScale;
+                let sy = h/2 + (b.y - player.y) * viewScale;
+                ctx.fillStyle = "#ffff00";
+                ctx.beginPath(); ctx.arc(sx, sy, 4, 0, Math.PI*2); ctx.fill();
+                if(Math.hypot(b.x-enemy.x, b.y-enemy.y) < 30) { enemy.hp -= 20; bullets.splice(i, 1); }
             });
 
             enemyBullets.forEach((eb, i) => {
                 eb.x += eb.vx; eb.y += eb.vy;
-                ctx.fillStyle = "#e74c3c";
-                ctx.beginPath(); ctx.arc(eb.x, eb.y, 3, 0, Math.PI*2); ctx.fill();
-                if(Math.hypot(eb.x-player.x, eb.y-player.y) < 15) {
-                    player.hp -= 10;
+                let sx = w/2 + (eb.x - player.x) * viewScale;
+                let sy = h/2 + (eb.y - player.y) * viewScale;
+                ctx.fillStyle = "#ff0000";
+                ctx.beginPath(); ctx.arc(sx, sy, 4, 0, Math.PI*2); ctx.fill();
+                if(Math.hypot(eb.x-player.x, eb.y-player.y) < 20) {
+                    player.hp -= 5;
                     document.getElementById('hp-fill').style.width = player.hp + "%";
                     enemyBullets.splice(i, 1);
-                    if(player.hp <= 0) location.reload();
                 }
             });
 
-            drawEnemy();
-            drawPlayer();
+            // Player Parachute/Sprite
+            ctx.save();
+            ctx.translate(w/2, h/2);
+            if(!isLanded) {
+                ctx.fillStyle = "#d35400"; // Chute
+                ctx.beginPath(); ctx.arc(0, -40, 60 * viewScale, Math.PI, 0); ctx.fill();
+            }
+            ctx.fillStyle = "#00ffcc"; // Player
+            ctx.fillRect(-10, -10, 20, 20);
+            ctx.restore();
 
             requestAnimationFrame(loop);
         }
