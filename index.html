@@ -2,66 +2,63 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Frontline | Forest Checkpoint</title>
+    <title>Frontline Protocol | Stable Build</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #87CEEB; font-family: 'Orbitron', sans-serif; }
+        body { margin: 0; overflow: hidden; background: #87CEEB; font-family: 'Segoe UI', sans-serif; }
         
-        /* Realistic Tactical HUD */
-        #hud {
-            position: absolute; bottom: 30px; left: 30px; color: #00ff00;
-            text-shadow: 0 0 5px #00ff00; pointer-events: none;
-        }
-        #hp-container {
-            width: 250px; height: 10px; background: rgba(0, 50, 0, 0.5);
-            border: 1px solid #00ff00; margin-top: 5px; position: relative;
-        }
-        #hp-bar { width: 100%; height: 100%; background: #00ff00; transition: width 0.2s; }
+        /* HUD */
+        #gui { position: absolute; bottom: 30px; left: 30px; color: #00ff00; pointer-events: none; }
+        #hp-container { width: 200px; height: 12px; background: rgba(0,0,0,0.5); border: 2px solid #00ff00; }
+        #hp-bar { width: 100%; height: 100%; background: #00ff00; transition: width 0.1s; }
         
         #crosshair {
-            position: absolute; top: 50%; left: 50%; width: 20px; height: 20px;
+            position: absolute; top: 50%; left: 50%; width: 16px; height: 16px;
+            border: 2px solid rgba(0, 255, 0, 0.8); border-radius: 50%;
             transform: translate(-50%, -50%); pointer-events: none;
         }
-        #crosshair::before, #crosshair::after {
-            content: ''; position: absolute; background: #00ff00;
-        }
-        #crosshair::before { top: 50%; width: 100%; height: 2px; } /* Horizontal */
-        #crosshair::after { left: 50%; height: 100%; width: 2px; } /* Vertical */
 
+        /* Hotbar */
         #hotbar {
-            position: absolute; bottom: 20px; right: 30px; display: flex; gap: 10px;
+            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+            display: flex; gap: 8px; background: rgba(0,0,0,0.7); padding: 8px; border-radius: 4px;
         }
         .slot {
-            width: 70px; height: 70px; border: 2px solid rgba(0,255,0,0.3);
-            background: rgba(0,20,0,0.6); color: #00ff00;
-            display: flex; align-items: center; justify-content: center; font-size: 12px;
+            width: 50px; height: 50px; border: 2px solid #444; color: #888;
+            display: flex; align-items: center; justify-content: center; font-size: 10px; text-align: center;
         }
-        .active { border: 2px solid #00ff00; box-shadow: 0 0 10px #00ff00; }
+        .slot.active { border-color: #00ff00; color: #fff; box-shadow: inset 0 0 10px rgba(0,255,0,0.3); }
 
-        #overlay { 
-            position: absolute; width: 100%; height: 100%; background: rgba(0,0,0,0.8);
-            display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; color: white;
+        #screen-flash {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: red; opacity: 0; pointer-events: none;
         }
+
+        #menu { 
+            position: absolute; width: 100%; height: 100%; background: rgba(0,0,0,0.85);
+            display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; color: white;
+        }
+        button { padding: 12px 40px; background: #00ff00; border: none; font-weight: bold; cursor: pointer; border-radius: 4px; }
     </style>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
 
-    <div id="overlay">
-        <h1>SECTOR 7: CHECKPOST</h1>
-        <p>HOLD <span style="color:#00ff00">SHIFT</span> TO SPRINT | <span style="color:#00ff00">1-2</span> SWITCH GEAR</p>
-        <button onclick="start()" style="padding: 10px 40px; background: #00ff00; border: none; cursor: pointer; font-weight: bold;">ENGAGE</button>
+    <div id="menu">
+        <h1>FRONTLINE PROTOCOL</h1>
+        <p>STABLE v1.0 | FOREST CHECKPOINT</p>
+        <button onclick="lockPointer()">DEPLOY</button>
     </div>
 
-    <div id="hud">
-        <div style="font-size: 14px;">VITAL SIGNS: STABLE</div>
+    <div id="screen-flash"></div>
+    <div id="crosshair"></div>
+
+    <div id="gui">
+        <div style="font-weight: bold; font-size: 12px; margin-bottom: 4px;">OPERATIVE STATUS</div>
         <div id="hp-container"><div id="hp-bar"></div></div>
     </div>
 
-    <div id="crosshair"></div>
-
     <div id="hotbar">
-        <div id="slot-1" class="slot active">RIFLE</div>
-        <div id="slot-2" class="slot">FLASHLIGHT</div>
+        <div id="slot-1" class="slot active">1<br>RIFLE</div>
+        <div id="slot-2" class="slot">2<br>TORCH</div>
     </div>
 
     <script type="importmap">
@@ -77,10 +74,17 @@
         import * as THREE from 'three';
         import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 
-        // --- SCENE & LIGHTING ---
+        // --- CORE VARIABLES ---
+        let health = 100;
+        let isSprinting = false;
+        let activeSlot = 1;
+        const enemies = [];
+        const keys = { w: false, a: false, s: false, d: false, shift: false };
+
+        // --- SCENE SETUP ---
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x90caf9);
-        scene.fog = new THREE.Fog(0x90caf9, 20, 100);
+        scene.background = new THREE.Color(0x87CEEB);
+        scene.fog = new THREE.Fog(0x87CEEB, 20, 120);
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -88,121 +92,157 @@
         renderer.shadowMap.enabled = true;
         document.body.appendChild(renderer.domElement);
 
-        const sun = new THREE.DirectionalLight(0xffffff, 1.5);
-        sun.position.set(50, 50, 50);
-        sun.castShadow = true;
-        scene.add(sun, new THREE.AmbientLight(0xffffff, 0.5));
-
-        // --- WORLD OBJECTS (Checkpost) ---
-        const grass = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshStandardMaterial({ color: 0x3d5229 }));
-        grass.rotation.x = -Math.PI / 2;
-        grass.receiveShadow = true;
-        scene.add(grass);
-
-        // Function for Sandbag walls
-        function createSandbag(x, z, ry) {
-            const bag = new THREE.Mesh(new THREE.BoxGeometry(2, 0.5, 1), new THREE.MeshStandardMaterial({color: 0x968169}));
-            bag.position.set(x, 0.25, z);
-            bag.rotation.y = ry;
-            scene.add(bag);
-        }
-        // Build a small checkpost square
-        for(let i=0; i<3; i++) {
-            createSandbag(-3, -5 + i, 0); 
-            createSandbag(3, -5 + i, 0);
-        }
-
-        // Trees
-        for(let i=0; i<50; i++) {
-            const t = new THREE.Group();
-            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 5), new THREE.MeshStandardMaterial({color: 0x3d2b1f}));
-            const leaves = new THREE.Mesh(new THREE.SphereGeometry(2), new THREE.MeshStandardMaterial({color: 0x1a2e1a}));
-            leaves.position.y = 4;
-            t.add(trunk, leaves);
-            t.position.set((Math.random()-0.5)*150, 0, (Math.random()-0.5)*150);
-            scene.add(t);
-        }
-
-        // --- ENEMIES (Soldiers) ---
-        const enemies = [];
-        function spawnSoldier() {
-            const soldier = new THREE.Group();
-            const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.4, 1.2), new THREE.MeshStandardMaterial({color: 0x2e3b23}));
-            body.position.y = 1;
-            const head = new THREE.Mesh(new THREE.SphereGeometry(0.3), new THREE.MeshStandardMaterial({color: 0xd2b48c}));
-            head.position.y = 1.9;
-            soldier.add(body, head);
-            soldier.position.set((Math.random()-0.5)*100, 0, (Math.random()-0.5)*100);
-            scene.add(soldier);
-            enemies.push(soldier);
-        }
-        for(let i=0; i<8; i++) spawnSoldier();
-
-        // --- PLAYER WEAPON ---
-        const gunParent = new THREE.Group();
-        const gun = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.18, 1.2), new THREE.MeshStandardMaterial({color: 0x111111}));
-        gun.position.set(0.4, -0.4, -0.8);
-        gunParent.add(gun);
-        camera.add(gunParent);
-        scene.add(camera);
-
-        // --- GAMEPLAY LOGIC ---
-        let health = 100;
-        let isSprinting = false;
         const controls = new PointerLockControls(camera, document.body);
 
-        window.start = () => { controls.lock(); document.getElementById('overlay').style.display='none'; };
+        // --- LIGHTING ---
+        const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambient);
+        const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+        sun.position.set(50, 80, 50);
+        sun.castShadow = true;
+        scene.add(sun);
 
-        document.addEventListener('keydown', (e) => {
-            if(e.code === 'ShiftLeft') isSprinting = true;
-            if(e.key === '1') { gun.visible = true; document.getElementById('slot-1').className='slot active'; document.getElementById('slot-2').className='slot'; }
-            if(e.key === '2') { gun.visible = false; document.getElementById('slot-2').className='slot active'; document.getElementById('slot-1').className='slot'; }
+        // --- ENVIRONMENT (CHECKPOINT & FOREST) ---
+        const ground = new THREE.Mesh(new THREE.PlaneGeometry(300, 300), new THREE.MeshStandardMaterial({ color: 0x445533 }));
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        // Sandbags (Barrier)
+        function addWall(x, z) {
+            const wall = new THREE.Mesh(new THREE.BoxGeometry(4, 1, 1.5), new THREE.MeshStandardMaterial({color: 0x887766}));
+            wall.position.set(x, 0.5, z);
+            scene.add(wall);
+        }
+        addWall(0, -10); // Center barrier
+
+        // Trees
+        for(let i=0; i<60; i++) {
+            const tree = new THREE.Group();
+            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 4), new THREE.MeshStandardMaterial({color: 0x3d2b1f}));
+            const leaves = new THREE.Mesh(new THREE.DodecahedronGeometry(2), new THREE.MeshStandardMaterial({color: 0x1e3d1e}));
+            leaves.position.y = 3;
+            tree.add(trunk, leaves);
+            tree.position.set((Math.random()-0.5)*150, 0, (Math.random()-0.5)*150);
+            scene.add(tree);
+        }
+
+        // --- ENEMIES (HUMAN-LIKE) ---
+        function createEnemy() {
+            const enemy = new THREE.Group();
+            const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.4, 1), new THREE.MeshStandardMaterial({color: 0x222222}));
+            body.position.y = 1;
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), new THREE.MeshStandardMaterial({color: 0xffdbac}));
+            head.position.y = 1.9;
+            enemy.add(body, head);
+            enemy.position.set((Math.random()-0.5)*100, 0, (Math.random()-0.5)*100);
+            scene.add(enemy);
+            enemies.push(enemy);
+        }
+        for(let i=0; i<15; i++) createEnemy();
+
+        // --- WEAPON & TORCH ---
+        const weaponPivot = new THREE.Group();
+        const rifle = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.15, 0.9), new THREE.MeshStandardMaterial({color: 0x111111}));
+        rifle.position.set(0.35, -0.35, -0.5);
+        
+        const torch = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.4), new THREE.MeshStandardMaterial({color: 0x444444}));
+        torch.rotation.x = Math.PI / 2;
+        torch.position.set(0.35, -0.35, -0.4);
+        torch.visible = false;
+
+        const torchLight = new THREE.SpotLight(0xffffff, 0, 40, 0.4);
+        camera.add(torchLight, torchLight.target);
+        torchLight.target.position.set(0,0,-5);
+
+        weaponPivot.add(rifle, torch);
+        camera.add(weaponPivot);
+        scene.add(camera);
+
+        // --- EVENT HANDLERS ---
+        window.lockPointer = () => controls.lock();
+        controls.addEventListener('lock', () => document.getElementById('menu').style.display = 'none');
+        controls.addEventListener('unlock', () => document.getElementById('menu').style.display = 'flex');
+
+        window.addEventListener('keydown', (e) => {
+            const k = e.key.toLowerCase();
+            if(k === 'w') keys.w = true; if(k === 's') keys.s = true;
+            if(k === 'a') keys.a = true; if(k === 'd') keys.d = true;
+            if(e.shiftKey) isSprinting = true;
+            
+            if(k === '1') switchItem(1);
+            if(k === '2') switchItem(2);
         });
-        document.addEventListener('keyup', (e) => { if(e.code === 'ShiftLeft') isSprinting = false; });
+        window.addEventListener('keyup', (e) => {
+            const k = e.key.toLowerCase();
+            if(k === 'w') keys.w = false; if(k === 's') keys.s = false;
+            if(k === 'a') keys.a = false; if(k === 'd') keys.d = false;
+            if(!e.shiftKey) isSprinting = false;
+        });
+
+        function switchItem(id) {
+            activeSlot = id;
+            rifle.visible = (id === 1);
+            torch.visible = (id === 2);
+            torchLight.intensity = (id === 2) ? 80 : 0;
+            document.querySelectorAll('.slot').forEach((s, i) => s.className = (i+1 === id) ? 'slot active' : 'slot');
+        }
 
         window.addEventListener('mousedown', () => {
-            if(!controls.isLocked || !gun.visible) return;
-            gun.position.z += 0.1; // Kickback
-            setTimeout(() => gun.position.z -= 0.1, 50);
+            if(!controls.isLocked || activeSlot !== 1) return;
+            // Gun Kickback
+            rifle.position.z += 0.08;
+            setTimeout(() => rifle.position.z -= 0.08, 50);
 
             const ray = new THREE.Raycaster();
             ray.setFromCamera(new THREE.Vector2(0,0), camera);
             const hits = ray.intersectObjects(enemies, true);
             if(hits.length > 0) {
-                let target = hits[0].object;
-                while(target.parent !== scene) target = target.parent;
-                scene.remove(target);
-                enemies.splice(enemies.indexOf(target), 1);
+                let hitObj = hits[0].object;
+                while(hitObj.parent !== scene) hitObj = hitObj.parent;
+                scene.remove(hitObj);
+                enemies.splice(enemies.indexOf(hitObj), 1);
             }
         });
 
-        // --- ANIMATION ---
-        const move = { f: false, b: false, l: false, r: false };
-        document.onkeydown = (e) => { if(e.code==='KeyW') move.f=true; if(e.code==='KeyS') move.b=true; if(e.code==='KeyA') move.l=true; if(e.code==='KeyD') move.r=true; };
-        document.onkeyup = (e) => { if(e.code==='KeyW') move.f=false; if(e.code==='KeyS') move.b=false; if(e.code==='KeyA') move.l=false; if(e.code==='KeyD') move.r=false; };
-
+        // --- MAIN LOOP ---
+        let lastTime = performance.now();
         function animate() {
             requestAnimationFrame(animate);
-            if(controls.isLocked) {
-                let speed = isSprinting ? 0.3 : 0.15;
-                if(move.f) controls.moveForward(speed); if(move.b) controls.moveForward(-speed);
-                if(move.l) controls.moveRight(-speed*0.8); if(move.r) controls.moveRight(speed*0.8);
+            const time = performance.now();
+            const delta = (time - lastTime) / 1000;
+            lastTime = time;
 
-                // Gun Sway
-                const time = Date.now() * 0.005;
-                if(move.f || move.b || move.l || move.r) {
-                    gunParent.position.y = Math.sin(time) * 0.02;
-                    gunParent.position.x = Math.cos(time * 0.5) * 0.02;
+            if(controls.isLocked) {
+                // Movement
+                let speed = (isSprinting ? 12 : 6) * delta;
+                if(keys.w) controls.moveForward(speed);
+                if(keys.s) controls.moveForward(-speed);
+                if(keys.a) controls.moveRight(-speed * 0.7);
+                if(keys.d) controls.moveRight(speed * 0.7);
+
+                // Gun Bobbing (Smoother)
+                if(keys.w || keys.s || keys.a || keys.d) {
+                    const bob = isSprinting ? 0.08 : 0.04;
+                    weaponPivot.position.y = Math.sin(time * 0.01) * bob;
+                    weaponPivot.position.x = Math.cos(time * 0.005) * (bob/2);
+                } else {
+                    weaponPivot.position.y *= 0.9; // Reset position smoothly
                 }
 
+                // Enemy AI
                 enemies.forEach(en => {
-                    en.lookAt(camera.position.x, 0, camera.position.z);
-                    const d = en.position.distanceTo(camera.position);
-                    if(d < 30 && d > 2) en.translateZ(0.08);
-                    if(d <= 2) {
-                        health -= 0.5;
-                        document.getElementById('hp-bar').style.width = health + "%";
-                        if(health <= 0) location.reload();
+                    const dist = en.position.distanceTo(camera.position);
+                    if(dist < 40) {
+                        en.lookAt(camera.position.x, 0, camera.position.z);
+                        if(dist > 2) en.translateZ(3 * delta);
+                        else {
+                            health -= 15 * delta;
+                            document.getElementById('hp-bar').style.width = health + "%";
+                            document.getElementById('screen-flash').style.opacity = 0.3;
+                            setTimeout(() => document.getElementById('screen-flash').style.opacity = 0, 100);
+                            if(health <= 0) location.reload();
+                        }
                     }
                 });
             }
