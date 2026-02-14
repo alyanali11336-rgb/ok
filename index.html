@@ -2,57 +2,57 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>DEAD WEEKEND | OPERATION ANNA</title>
+    <title>DEAD WEEKEND | DAWN RESCUE</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
     <style>
-        body, html { margin: 0; padding: 0; overflow: hidden; background: #050505; color: white; font-family: 'Share Tech Mono', monospace; }
-        canvas { display: block; }
+        body, html { margin: 0; padding: 0; overflow: hidden; background: #1a0a05; color: white; font-family: 'Share Tech Mono', monospace; }
+        canvas { display: block; filter: contrast(1.1) saturate(1.2); }
         
-        /* Tactical HUD */
-        #hud { position: fixed; inset: 0; pointer-events: none; z-index: 10; border: 20px solid rgba(255, 255, 255, 0.05); }
-        #vignette { position: absolute; inset: 0; background: radial-gradient(circle, transparent 50%, rgba(0,0,0,0.8) 100%); }
+        #hud { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
+        #vignette { position: absolute; inset: 0; background: radial-gradient(circle, transparent 40%, rgba(26, 10, 5, 0.7) 100%); }
         
-        #comms-window { position: absolute; top: 40px; right: 40px; width: 300px; background: rgba(0, 20, 0, 0.8); border-left: 4px solid #00ff00; padding: 15px; display: none; }
-        #commander-name { color: #00ff00; font-weight: bold; font-size: 0.8rem; margin-bottom: 5px; }
-        #comms-text { font-size: 0.9rem; color: #fff; line-height: 1.2; }
+        #comms-window { position: absolute; top: 40px; right: 40px; width: 320px; background: rgba(30, 15, 10, 0.85); border-left: 4px solid #ffaa00; padding: 15px; display: none; box-shadow: 0 0 20px rgba(255,170,0,0.2); }
+        #commander-name { color: #ffaa00; font-weight: bold; font-size: 0.8rem; margin-bottom: 5px; letter-spacing: 2px; }
+        #comms-text { font-size: 0.9rem; color: #ffdcb0; line-height: 1.3; }
 
         #stats { position: absolute; bottom: 40px; left: 40px; }
-        .bar-container { width: 250px; height: 10px; background: rgba(255,255,255,0.1); border: 1px solid #444; margin: 10px 0; }
-        #hp-fill { width: 100%; height: 100%; background: #00ffcc; transition: 0.3s; box-shadow: 0 0 10px #00ffcc; }
+        .bar-container { width: 250px; height: 6px; background: rgba(0,0,0,0.5); border: 1px solid #ffaa00; margin: 10px 0; overflow: hidden;}
+        #hp-fill { width: 100%; height: 100%; background: linear-gradient(90deg, #ff4400, #ffaa00); transition: 0.3s; }
         
-        #crosshair { position: fixed; top: 50%; left: 50%; width: 20px; height: 20px; border: 1px solid rgba(0, 255, 204, 0.5); transform: translate(-50%, -50%); border-radius: 50%; }
-        
-        #intro { position: fixed; inset: 0; background: #000; z-index: 100; display: flex; flex-direction: column; justify-content: center; align-items: center; transition: 2s; }
-        h1 { font-family: 'Orbitron'; font-size: 3rem; color: #00ffcc; letter-spacing: 10px; margin: 0; }
+        #crosshair { position: fixed; top: 50%; left: 50%; width: 24px; height: 24px; border: 1px solid rgba(255, 170, 0, 0.4); transform: translate(-50%, -50%); border-radius: 50%; }
+        #flashlight-status { font-size: 0.7rem; color: #ffaa00; margin-top: 5px; }
+
+        #intro { position: fixed; inset: 0; background: radial-gradient(circle, #2a1a15, #000); z-index: 100; display: flex; flex-direction: column; justify-content: center; align-items: center; transition: 2s; }
+        h1 { font-family: 'Orbitron'; font-size: 3.5rem; color: #ffaa00; letter-spacing: 15px; margin: 0; text-shadow: 0 0 30px rgba(255,170,0,0.5); }
     </style>
 </head>
 <body>
 
     <div id="intro">
         <h1>DEAD WEEKEND</h1>
-        <p style="letter-spacing: 5px; color: #888;">FBI SPECIAL OPERATIONS • SECTOR 4</p>
-        <button onclick="startMission()" style="background:none; border: 1px solid #00ffcc; color:#00ffcc; padding:15px 40px; cursor:pointer; margin-top:30px; font-family:'Orbitron';">INITIATE DEPLOYMENT</button>
+        <p style="letter-spacing: 5px; color: #ffdcb0; opacity: 0.7;">FIRST LIGHT • SPECIAL AGENT PRITAM</p>
+        <button onclick="startMission()" style="background:none; border: 1px solid #ffaa00; color:#ffaa00; padding:15px 50px; cursor:pointer; margin-top:30px; font-family:'Orbitron'; font-size:1rem; transition: 0.3s;" onmouseover="this.style.background='#ffaa00'; this.style.color='#000'">BREACH PERIMETER</button>
     </div>
 
     <div id="hud">
         <div id="vignette"></div>
         <div id="crosshair"></div>
         <div id="comms-window">
-            <div id="commander-name">🛰️ COMMANDER MILLER [FBI]</div>
-            <div id="comms-text">"Agent, the virus hit the city hard. Find Dr. Anna at the safe house. Move!"</div>
+            <div id="commander-name">🛰️ DIR. MILLER (FBI TACTICAL)</div>
+            <div id="comms-text"></div>
         </div>
         <div id="stats">
             AGENT VITALS
             <div class="bar-container"><div id="hp-fill"></div></div>
-            AMMO: <span id="ammo">15 / 15</span>
+            <div id="flashlight-status">FLASHLIGHT: [F] TO TOGGLE</div>
         </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
     <script>
-        let scene, camera, renderer, player, clock, flash;
+        let scene, camera, renderer, player, clock, flash, flashlight;
         let zombies = [], bullets = [], walls = [];
-        let health = 100, isPlaying = false, ammo = 15;
+        let health = 100, isPlaying = false, flashlightOn = true;
         let annaFound = false;
 
         function startMission() {
@@ -60,7 +60,7 @@
             setTimeout(() => {
                 document.getElementById('intro').style.display = 'none';
                 isPlaying = true;
-                playComms("Agent, Dr. Anna is trapped in the center of the block. Rescue her and eliminate any bio-threats.");
+                playComms("Agent Pritam, the sun is coming up. Visibility is shifting. Find Anna before the heat wakes the rest of them up.");
             }, 2000);
             document.body.requestPointerLock();
         }
@@ -75,106 +75,122 @@
                 txt.innerText += text[i];
                 i++;
                 if (i >= text.length) clearInterval(interval);
-            }, 300);
-            setTimeout(() => { win.style.display = 'none'; }, 6000);
+            }, 40).bind;
+            setTimeout(() => { win.style.display = 'none'; }, 7000);
         }
 
         function init() {
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x020202);
-            scene.fog = new THREE.FogExp2(0x020202, 0.05);
+            // --- HYBRID SUNRISE SKY ---
+            scene.background = new THREE.Color(0x1a0a05); 
+            scene.fog = new THREE.FogExp2(0x1a0a05, 0.04);
 
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.shadowMap.enabled = true;
+            renderer.toneMapping = THREE.ReinhardToneMapping;
             document.body.appendChild(renderer.domElement);
 
             clock = new THREE.Clock();
 
-            // Lighting
-            const sun = new THREE.DirectionalLight(0x4444ff, 0.5); // Moonlight
-            sun.position.set(10, 20, 10);
-            scene.add(sun, new THREE.AmbientLight(0xffffff, 0.05));
+            // --- SUNRISE LIGHTING ---
+            const dawnLight = new THREE.DirectionalLight(0xffaa44, 1.2); // Warm orange sun
+            dawnLight.position.set(50, 10, -50);
+            dawnLight.castShadow = true;
+            scene.add(dawnLight);
+
+            const ambient = new THREE.AmbientLight(0x1a1a33, 0.4); // Cool blue fill for shadows
+            scene.add(ambient);
 
             createCity();
             createPlayer();
             spawnAnna();
-            for(let i=0; i<10; i++) spawnZombie();
+            for(let i=0; i<12; i++) spawnZombie();
 
-            window.onkeydown = (e) => keys[e.code] = true;
+            window.onkeydown = (e) => {
+                keys[e.code] = true;
+                if(e.code === 'KeyF') {
+                    flashlightOn = !flashlightOn;
+                    flashlight.intensity = flashlightOn ? 5 : 0;
+                }
+            };
             window.onkeyup = (e) => keys[e.code] = false;
             window.onmousedown = shoot;
-            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mousemove', (e) => {
+                if(!isPlaying) return;
+                player.rotation.y -= e.movementX * 0.002;
+                camera.rotation.x -= e.movementY * 0.002;
+                camera.rotation.x = Math.max(-1.4, Math.min(1.4, camera.rotation.x));
+            });
 
             animate();
         }
 
         const keys = {};
-        function onMove(e) {
-            if(!isPlaying) return;
-            player.rotation.y -= e.movementX * 0.002;
-            camera.rotation.x -= e.movementY * 0.002;
-            camera.rotation.x = Math.max(-1.4, Math.min(1.4, camera.rotation.x));
-        }
 
         function createPlayer() {
             player = new THREE.Group();
-            player.position.set(0, 1.8, 20);
+            player.position.set(0, 1.8, 25);
             scene.add(player);
 
-            // Gun model
-            const g = new THREE.Group();
-            const body = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.5), new THREE.MeshStandardMaterial({color:0x111111}));
-            flash = new THREE.PointLight(0xffaa00, 0, 5);
-            g.add(body, flash);
-            g.position.set(0.3, -0.3, -0.5);
-            camera.add(g);
+            // Tactical Flashlight
+            flashlight = new THREE.SpotLight(0xffffff, 5, 40, Math.PI/6, 0.5);
+            flashlight.position.set(0.3, -0.2, 0);
+            camera.add(flashlight);
+            camera.add(flashlight.target);
+            flashlight.target.position.set(0.3, -0.2, -10);
+
+            // Muzzle Flash
+            flash = new THREE.PointLight(0xff5500, 0, 10);
+            camera.add(flash);
+            flash.position.set(0.3, -0.3, -0.5);
+
             scene.add(camera);
         }
 
         function createCity() {
-            const ground = new THREE.Mesh(new THREE.PlaneGeometry(1000, 1000), new THREE.MeshStandardMaterial({color: 0x111111}));
-            ground.rotation.x = -Math.PI/2; ground.receiveShadow = true;
+            const ground = new THREE.Mesh(new THREE.PlaneGeometry(1000, 1000), new THREE.MeshStandardMaterial({color: 0x0a0a0a, roughness: 0.8}));
+            ground.rotation.x = -Math.PI/2;
+            ground.receiveShadow = true;
             scene.add(ground);
 
-            // Buildings
-            for(let i=0; i<30; i++) {
-                const h = 5 + Math.random()*20;
-                const b = new THREE.Mesh(new THREE.BoxGeometry(10, h, 10), new THREE.MeshStandardMaterial({color: 0x222222}));
-                b.position.set(Math.random()*200-100, h/2, Math.random()*200-100);
-                if(b.position.length() < 15) b.position.z -= 20;
+            for(let i=0; i<35; i++) {
+                const h = 8 + Math.random()*25;
+                const b = new THREE.Mesh(new THREE.BoxGeometry(12, h, 12), new THREE.MeshStandardMaterial({color: 0x1a1a1a}));
+                b.position.set(Math.random()*240-120, h/2, Math.random()*240-120);
+                if(b.position.distanceTo(new THREE.Vector3(0,0,0)) < 20) b.position.x += 30;
+                b.castShadow = true;
+                b.receiveShadow = true;
                 scene.add(b);
                 walls.push(b);
             }
         }
 
         function spawnAnna() {
-            const geo = new THREE.CylinderGeometry(0.4, 0.4, 1.8);
-            const mat = new THREE.MeshStandardMaterial({color: 0xff00ff, emissive: 0x220022});
-            const mesh = new THREE.Mesh(geo, mat);
-            mesh.position.set(0, 0.9, -40);
-            mesh.name = "Anna";
-            scene.add(mesh);
+            const group = new THREE.Group();
+            const body = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 1.6), new THREE.MeshStandardMaterial({color: 0xffffff}));
+            const glow = new THREE.PointLight(0xff00ff, 2, 10);
+            group.add(body, glow);
+            group.position.set(Math.random()*40-20, 0.8, -50);
+            group.name = "Anna";
+            scene.add(group);
         }
 
         function spawnZombie() {
-            const zGeo = new THREE.BoxGeometry(0.8, 1.8, 0.8);
-            const zMat = new THREE.MeshStandardMaterial({color: 0x223322});
-            const z = new THREE.Mesh(zGeo, zMat);
-            z.position.set(Math.random()*80-40, 0.9, Math.random()*80-80);
+            const z = new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.9, 0.9), new THREE.MeshStandardMaterial({color: 0x2d2d2d}));
+            z.position.set(Math.random()*150-75, 0.95, Math.random()*150-150);
+            z.castShadow = true;
             scene.add(z);
             zombies.push({mesh: z, hp: 100, lastHit: 0});
         }
 
         function shoot() {
-            if(!isPlaying || ammo <= 0) return;
-            ammo--;
-            document.getElementById('ammo').innerText = `${ammo} / 15`;
-            flash.intensity = 10;
-            setTimeout(() => flash.intensity = 0, 50);
+            if(!isPlaying) return;
+            flash.intensity = 15;
+            setTimeout(() => flash.intensity = 0, 40);
 
-            const b = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({color: 0xffff00}));
+            const b = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({color: 0xffaa00}));
             b.position.copy(player.position);
             const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
             bullets.push({mesh: b, dir: dir});
@@ -188,44 +204,44 @@
 
             // Movement
             const oldPos = player.position.clone();
-            if(keys['KeyW']) player.translateZ(-0.15);
-            if(keys['KeyS']) player.translateZ(0.15);
-            if(keys['KeyA']) player.translateX(-0.15);
-            if(keys['KeyD']) player.translateX(0.15);
-            walls.forEach(w => { if(player.position.distanceTo(w.position) < 6) player.position.copy(oldPos); });
-
+            const moveSpeed = keys['ShiftLeft'] ? 0.25 : 0.12;
+            if(keys['KeyW']) player.translateZ(-moveSpeed);
+            if(keys['KeyS']) player.translateZ(moveSpeed);
+            if(keys['KeyA']) player.translateX(-moveSpeed);
+            if(keys['KeyD']) player.translateX(moveSpeed);
+            
+            walls.forEach(w => { if(player.position.distanceTo(w.position) < 8) player.position.copy(oldPos); });
             camera.position.copy(player.position);
             camera.rotation.y = player.rotation.y;
 
             // Mission Logic
             const anna = scene.getObjectByName("Anna");
-            if(anna && player.position.distanceTo(anna.position) < 3 && !annaFound) {
+            if(anna && player.position.distanceTo(anna.position) < 4 && !annaFound) {
                 annaFound = true;
-                playComms("VIP secured! Commander, I have Dr. Anna. Requesting extraction at the North Gate!");
+                playComms("Dr. Anna secured! Pritam, hold your position. The extraction chopper is 2 minutes out. Watch the shadows!");
                 scene.remove(anna);
             }
 
             // Zombie AI
             zombies.forEach((z, i) => {
                 const dist = z.mesh.position.distanceTo(player.position);
-                const speed = (health < 40) ? 0.08 : 0.03;
-                z.mesh.lookAt(player.position.x, 0.9, player.position.z);
+                const speed = (health < 50) ? 0.11 : 0.04;
+                z.mesh.lookAt(player.position.x, 0.95, player.position.z);
                 z.mesh.translateZ(speed);
 
-                if(dist < 2 && Date.now() - z.lastHit > 1500) {
-                    health -= 15;
+                if(dist < 2.2 && Date.now() - z.lastHit > 1200) {
+                    health -= 20;
                     document.getElementById('hp-fill').style.width = health + "%";
                     z.lastHit = Date.now();
-                    if(health < 30) playComms("Agent, your vitals are dropping! Get out of there!");
                     if(health <= 0) location.reload();
                 }
             });
 
-            // Bullets
+            // Projectiles
             bullets.forEach((b, bi) => {
-                b.mesh.position.addScaledVector(b.dir, 1.5);
+                b.mesh.position.addScaledVector(b.dir, 1.8);
                 zombies.forEach((z, zi) => {
-                    if(b.mesh.position.distanceTo(z.mesh.position) < 1.5) {
+                    if(b.mesh.position.distanceTo(z.mesh.position) < 1.8) {
                         z.hp -= 50; scene.remove(b.mesh); bullets.splice(bi, 1);
                         if(z.hp <= 0) { scene.remove(z.mesh); zombies.splice(zi, 1); spawnZombie(); }
                     }
