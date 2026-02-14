@@ -2,33 +2,36 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Frontline | Night Forest</title>
+    <title>Frontline | Tactical Forest</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; }
+        body { margin: 0; overflow: hidden; background: #01050a; font-family: 'Segoe UI', sans-serif; }
         #crosshair {
-            position: absolute; top: 50%; left: 50%; width: 10px; height: 10px;
-            border: 1px solid rgba(255, 255, 255, 0.5); transform: translate(-50%, -50%);
-            pointer-events: none;
+            position: absolute; top: 50%; left: 50%; width: 12px; height: 12px;
+            border: 2px solid rgba(0, 255, 0, 0.6); border-radius: 50%;
+            transform: translate(-50%, -50%); pointer-events: none;
         }
-        #ui { position: absolute; bottom: 20px; left: 20px; color: #00ff00; }
+        #ui { position: absolute; bottom: 30px; left: 30px; color: #fff; }
+        #weapon-info { position: absolute; bottom: 30px; right: 30px; color: #00ff00; text-align: right; font-weight: bold; }
         #instructions { 
-            position: absolute; width: 100%; height: 100%; background: #000; 
-            display: flex; flex-direction: column; justify-content: center; 
-            align-items: center; color: #00ff00; z-index: 10; text-align: center;
+            position: absolute; width: 100%; height: 100%; background: rgba(0,0,0,0.8);
+            display: flex; flex-direction: column; justify-content: center; align-items: center; 
+            color: white; z-index: 10; text-align: center;
         }
-        button { background: transparent; color: #00ff00; border: 1px solid #00ff00; padding: 10px 20px; cursor: pointer; }
+        .key-hint { color: #ffaa00; font-weight: bold; }
     </style>
 </head>
 <body>
 
     <div id="instructions">
-        <h1>NIGHT FOREST PROTOCOL</h1>
-        <p>FLASHLIGHT: ACTIVE | WEAPON: READY</p>
-        <button onclick="this.parentElement.style.display='none'">START MISSION</button>
+        <h1>FOREST SECTOR: OVERCAST</h1>
+        <p>Press <span class="key-hint">1</span> for Rifle | <span class="key-hint">2</span> for Pistol</p>
+        <p>Press <span class="key-hint">F</span> to toggle Torch</p>
+        <button onclick="this.parentElement.style.display='none'" style="padding: 10px 30px; cursor:pointer;">START MISSION</button>
     </div>
 
     <div id="crosshair"></div>
-    <div id="ui">NVG STATUS: ONLINE | SECTOR: FOREST</div>
+    <div id="ui">HEALTH: 100% | SECTOR: NORTH FOREST</div>
+    <div id="weapon-info">EQUIPPED: <span id="gun-name">RIFLE</span></div>
 
     <script type="importmap">
         {
@@ -43,10 +46,10 @@
         import * as THREE from 'three';
         import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 
-        // --- 1. DARK SCENE SETUP ---
+        // --- 1. MOONLIT ENVIRONMENT ---
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x000205);
-        scene.fog = new THREE.Fog(0x000000, 1, 30); // Very thick fog for darkness
+        scene.background = new THREE.Color(0x020408);
+        scene.fog = new THREE.Fog(0x020408, 5, 60);
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -54,111 +57,112 @@
         renderer.shadowMap.enabled = true;
         document.body.appendChild(renderer.domElement);
 
-        // --- 2. THE TORCH (SpotLight) ---
-        const flashlight = new THREE.SpotLight(0xffffff, 50);
-        flashlight.angle = Math.PI / 6; // Beam width
-        flashlight.penumbra = 0.3; // Soft edges
-        flashlight.decay = 2;
-        flashlight.distance = 40;
-        flashlight.castShadow = true;
+        // Moonlight (Ambient and Directional)
+        const moonLight = new THREE.DirectionalLight(0x4444ff, 0.4);
+        moonLight.position.set(10, 20, 10);
+        scene.add(moonLight);
+        scene.add(new THREE.AmbientLight(0x222244, 0.3));
 
-        // Attach flashlight to camera
-        camera.add(flashlight);
-        camera.add(flashlight.target);
-        flashlight.target.position.set(0, 0, -1); // Points forward
-        
-        // Slight moonlight so it's not 100% pitch black
-        const moon = new THREE.AmbientLight(0x0a0a1a, 0.2);
-        scene.add(moon);
+        // --- 2. TORCH SYSTEM ---
+        const torch = new THREE.SpotLight(0xffffff, 0); // Start off
+        torch.angle = Math.PI / 7;
+        torch.penumbra = 0.2;
+        torch.distance = 45;
+        camera.add(torch);
+        camera.add(torch.target);
+        torch.target.position.set(0, 0, -1);
+        scene.add(camera);
 
-        // --- 3. THE FOREST ---
-        // Ground
-        const ground = new THREE.Mesh(
+        let torchOn = false;
+
+        // --- 3. GRASS GROUND & TREES ---
+        const loader = new THREE.TextureLoader();
+        const grassTex = loader.load('https://threejs.org/examples/textures/terrain/grasslight-big.jpg');
+        grassTex.wrapS = grassTex.wrapT = THREE.RepeatWrapping;
+        grassTex.repeat.set(50, 50);
+
+        const floor = new THREE.Mesh(
             new THREE.PlaneGeometry(200, 200),
-            new THREE.MeshStandardMaterial({ color: 0x050505 })
+            new THREE.MeshStandardMaterial({ map: grassTex })
         );
-        ground.rotation.x = -Math.PI/2;
-        scene.add(ground);
+        floor.rotation.x = -Math.PI/2;
+        scene.add(floor);
 
-        // Procedural Trees
-        function createTree(x, z) {
+        // Simple Trees
+        const trees = [];
+        for(let i=0; i<100; i++) {
             const tree = new THREE.Group();
-            const trunk = new THREE.Mesh(
-                new THREE.CylinderGeometry(0.2, 0.3, 4),
-                new THREE.MeshStandardMaterial({ color: 0x1a0a00 })
-            );
-            trunk.position.y = 2;
-            
-            const leaves = new THREE.Mesh(
-                new THREE.ConeGeometry(1.5, 4, 6),
-                new THREE.MeshStandardMaterial({ color: 0x051a05 })
-            );
-            leaves.position.y = 5;
-            
+            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 3), new THREE.MeshStandardMaterial({color: 0x221100}));
+            const leaves = new THREE.Mesh(new THREE.SphereGeometry(1.5), new THREE.MeshStandardMaterial({color: 0x0a220a}));
+            leaves.position.y = 2.5;
             tree.add(trunk, leaves);
-            tree.position.set(x, 0, z);
+            tree.position.set((Math.random()-0.5)*100, 1.5, (Math.random()-0.5)*100);
             scene.add(tree);
+            trees.push(tree);
         }
 
-        for(let i=0; i<150; i++) {
-            createTree((Math.random()-0.5)*100, (Math.random()-0.5)*100);
-        }
-
-        // --- 4. THE ENEMIES (Stalkers) ---
+        // --- 4. ENEMIES ---
         const enemies = [];
-        function spawnEnemy() {
-            const enemy = new THREE.Mesh(
-                new THREE.CapsuleGeometry(0.4, 0.8),
-                new THREE.MeshStandardMaterial({ color: 0x000000 }) // Black suits for stealth
-            );
-            enemy.position.set((Math.random()-0.5)*40, 0.8, (Math.random()-0.5)*40);
+        function createEnemy() {
+            const enemy = new THREE.Mesh(new THREE.CapsuleGeometry(0.4, 1), new THREE.MeshStandardMaterial({color: 0x330000}));
+            enemy.position.set((Math.random()-0.5)*80, 1, (Math.random()-0.5)*80);
             scene.add(enemy);
             enemies.push(enemy);
         }
-        for(let i=0; i<10; i++) spawnEnemy();
+        for(let i=0; i<15; i++) createEnemy();
 
-        // --- 5. GUN & CONTROLS ---
-        const gun = new THREE.Mesh(
-            new THREE.BoxGeometry(0.1, 0.15, 0.7),
-            new THREE.MeshStandardMaterial({ color: 0x111111 })
-        );
-        gun.position.set(0.3, -0.3, -0.5);
-        camera.add(gun);
-        scene.add(camera);
+        // --- 5. WEAPON SWITCHING ---
+        const rifle = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.2, 1), new THREE.MeshStandardMaterial({color: 0x111111}));
+        rifle.position.set(0.3, -0.3, -0.6);
+        
+        const pistol = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.15, 0.4), new THREE.MeshStandardMaterial({color: 0x333333}));
+        pistol.position.set(0.3, -0.25, -0.4);
+        pistol.visible = false;
 
+        camera.add(rifle, pistol);
+
+        // --- 6. CONTROLS & INPUT ---
         const controls = new PointerLockControls(camera, document.body);
         document.body.addEventListener('click', () => controls.lock());
 
-        // --- 6. SHOOTING ---
+        window.addEventListener('keydown', (e) => {
+            if(e.key === '1') {
+                rifle.visible = true; pistol.visible = false;
+                document.getElementById('gun-name').innerText = "RIFLE";
+            }
+            if(e.key === '2') {
+                rifle.visible = false; pistol.visible = true;
+                document.getElementById('gun-name').innerText = "PISTOL";
+            }
+            if(e.key.toLowerCase() === 'f') {
+                torchOn = !torchOn;
+                torch.intensity = torchOn ? 100 : 0;
+            }
+        });
+
+        // --- 7. SHOOTING & ANIMATION ---
         const raycaster = new THREE.Raycaster();
         window.addEventListener('mousedown', () => {
             if(!controls.isLocked) return;
-            
-            // Recoil
-            gun.position.z += 0.05;
-            setTimeout(() => gun.position.z -= 0.05, 50);
-
             raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
             const hits = raycaster.intersectObjects(enemies);
             if(hits.length > 0) {
                 scene.remove(hits[0].object);
-                console.log("Stalker eliminated");
             }
         });
 
-        // --- 7. MOVEMENT & ANIMATION ---
-        let moveF = false, moveB = false, moveL = false, moveR = false;
-        document.onkeydown = (e) => {
-            if(e.code === 'KeyW') moveF = true;
-            if(e.code === 'KeyS') moveB = true;
-            if(e.code === 'KeyA') moveL = true;
-            if(e.code === 'KeyD') moveR = true;
+        const moveState = { f: false, b: false, l: false, r: false };
+        document.onkeydown = (e) => { 
+            if(e.code === 'KeyW') moveState.f = true; 
+            if(e.code === 'KeyS') moveState.b = true;
+            if(e.code === 'KeyA') moveState.l = true;
+            if(e.code === 'KeyD') moveState.r = true;
         };
-        document.onkeyup = (e) => {
-            if(e.code === 'KeyW') moveF = false;
-            if(e.code === 'KeyS') moveB = false;
-            if(e.code === 'KeyA') moveL = false;
-            if(e.code === 'KeyD') moveR = false;
+        document.onkeyup = (e) => { 
+            if(e.code === 'KeyW') moveState.f = false; 
+            if(e.code === 'KeyS') moveState.b = false;
+            if(e.code === 'KeyA') moveState.l = false;
+            if(e.code === 'KeyD') moveState.r = false;
         };
 
         const velocity = new THREE.Vector3();
@@ -172,14 +176,13 @@
             if(controls.isLocked) {
                 velocity.z -= velocity.z * 10 * delta;
                 velocity.x -= velocity.x * 10 * delta;
-                if(moveF) velocity.z -= 150 * delta;
-                if(moveB) velocity.z += 150 * delta;
-                if(moveL) velocity.x -= 150 * delta;
-                if(moveR) velocity.x += 150 * delta;
+                if(moveState.f) velocity.z -= 180 * delta;
+                if(moveState.b) velocity.z += 180 * delta;
+                if(moveState.l) velocity.x -= 180 * delta;
+                if(moveState.r) velocity.x += 180 * delta;
                 controls.moveForward(-velocity.z * delta);
                 controls.moveRight(-velocity.x * delta);
             }
-            
             prevTime = time;
             renderer.render(scene, camera);
         }
